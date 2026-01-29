@@ -163,25 +163,26 @@ def generate_rule_set(seed: int, rows: int = 25, cols: int = 40) -> RuleSet:
     rng = random.Random(seed)
     buckets = ["01", "02", "03", "04", "05"]
     regions = []
+    used_positions: set[tuple[int, int]] = set()
 
-    # Generate 5 regions (one per bucket)
-    num_regions = 5
+    for bucket in buckets:
+        # Try to place a non-overlapping region
+        for _ in range(100):  # Max attempts
+            region_x = rng.randint(2, cols - 6)
+            region_y = rng.randint(2, rows - 6)
+            region_w = rng.randint(2, 4)
+            region_h = rng.randint(2, 4)
 
-    for i in range(num_regions):
-        bucket = buckets[i % len(buckets)]
+            positions = [
+                (region_x + dx, region_y + dy)
+                for dy in range(region_h)
+                for dx in range(region_w)
+            ]
 
-        # Random region position and size
-        region_x = rng.randint(2, cols - 6)
-        region_y = rng.randint(2, rows - 6)
-        region_w = rng.randint(2, 4)
-        region_h = rng.randint(2, 4)
-
-        positions = [
-            (region_x + dx, region_y + dy)
-            for dy in range(region_h)
-            for dx in range(region_w)
-        ]
-
-        regions.append(Region(bucket=bucket, positions=positions))
+            # Check for overlap
+            if not any(pos in used_positions for pos in positions):
+                used_positions.update(positions)
+                regions.append(Region(bucket=bucket, positions=positions))
+                break
 
     return RuleSet(regions=regions, buckets=buckets)
