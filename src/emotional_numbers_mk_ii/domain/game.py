@@ -30,7 +30,7 @@ class RuleSet:
     """Collection of regions that define the puzzle."""
 
     regions: list[Region]
-    buckets: list[str] = field(default_factory=lambda: ["WO", "FC", "DR", "MA"])
+    buckets: list[str] = field(default_factory=lambda: ["01", "02", "03", "04", "05"])
 
     def get_bucket_for_position(self, x: int, y: int) -> str | None:
         """Return the bucket a position belongs to, or None if not in any region."""
@@ -161,7 +161,7 @@ def answers_to_seed(answers: list[dict]) -> int:
 def generate_rule_set(seed: int, rows: int = 25, cols: int = 40) -> RuleSet:
     """Generate a deterministic RuleSet from a seed."""
     rng = random.Random(seed)
-    buckets = ["WO", "FC", "DR", "MA"]
+    buckets = ["01", "02", "03", "04", "05"]
     regions = []
 
     # Generate 4-6 regions

@@ -15,6 +15,38 @@ const HEX_OFFSET_Y = 0xfffa0000;
 const HEX_MULTIPLIER = 0x1000;
 
 // ============================================================================
+// Seeded Random
+// ============================================================================
+
+/**
+ * Converts onboarding answers to a numeric seed.
+ * @param {Array<{questionId: string, answer: string}>} answers
+ * @returns {number} Seed value
+ */
+function answersToSeed(answers) {
+  const combined = answers.map((a) => `${a.questionId}:${a.answer}`).join('|');
+  let hash = 0;
+  for (let i = 0; i < combined.length; i++) {
+    const char = combined.charCodeAt(i);
+    hash = ((hash << 5) - hash + char) | 0;
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * Creates a seeded random number generator.
+ * @param {number} seed
+ * @returns {function(): number} Random function returning 0-1
+ */
+function seededRandom(seed) {
+  let s = seed;
+  return function () {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    return s / 0x7fffffff;
+  };
+}
+
+// ============================================================================
 // Cell Factory
 // ============================================================================
 
@@ -22,13 +54,14 @@ const HEX_MULTIPLIER = 0x1000;
  * Creates a single cell with default state.
  * @param {number} x - Column position
  * @param {number} y - Row position
+ * @param {function(): number} random - Random function (default Math.random)
  * @returns {Object} Cell object
  */
-function createCell(x, y) {
+function createCell(x, y, random = Math.random) {
   return {
     x,
     y,
-    value: Math.floor(Math.random() * 10),
+    value: Math.floor(random() * 10),
     selected: false,
     classified: false,
     size: 1,
@@ -43,15 +76,16 @@ function createCell(x, y) {
  * Generates a grid of cells with random values.
  * @param {number} rows - Number of rows (default 25)
  * @param {number} cols - Number of columns (default 40)
+ * @param {function(): number} random - Random function (default Math.random)
  * @returns {Array<Array<Object>>} 2D array of cells
  */
-export function generateGrid(rows = 25, cols = 40) {
+export function generateGrid(rows = 25, cols = 40, random = Math.random) {
   const grid = [];
 
   for (let y = 0; y < rows; y++) {
     const row = [];
     for (let x = 0; x < cols; x++) {
-      row.push(createCell(x, y));
+      row.push(createCell(x, y, random));
     }
     grid.push(row);
   }
@@ -67,11 +101,17 @@ export function generateGrid(rows = 25, cols = 40) {
  * Creates initial game state with all defaults.
  * @param {number} rows - Grid rows (default 25)
  * @param {number} cols - Grid columns (default 40)
+ * @param {Array<{questionId: string, answer: string}>} answers - Optional onboarding answers for seeding
  * @returns {Object} Initial game state
  */
-export function createInitialGameState(rows = 25, cols = 40) {
+export function createInitialGameState(rows = 25, cols = 40, answers = null) {
+  const random =
+    answers && answers.length > 0
+      ? seededRandom(answersToSeed(answers))
+      : Math.random;
+
   return {
-    grid: generateGrid(rows, cols),
+    grid: generateGrid(rows, cols, random),
     bins: {
       '01': 0,
       '02': 0,

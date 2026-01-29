@@ -114,7 +114,7 @@ async function handleSubmitAnswer() {
     const response = await api.submitAnswers(answers);
     gameState = {
       grid: response.grid,
-      bins: { WO: 0, FC: 0, DR: 0, MA: 0 },
+      bins: { '01': 0, '02': 0, '03': 0, '04': 0, '05': 0 },
       progress: 0,
     };
     showScreen(AppScreen.GAME);
@@ -291,9 +291,9 @@ document.addEventListener('keydown', async (e) => {
   if (currentScreen !== AppScreen.GAME) return;
   if (e.target.tagName === 'INPUT') return;
 
-  // W, F, D, M keys classify to bins
-  const keyToBucket = { w: 'WO', f: 'FC', d: 'DR', m: 'MA' };
-  const bucket = keyToBucket[e.key.toLowerCase()];
+  // 1-5 keys classify to bins
+  const keyToBucket = { '1': '01', '2': '02', '3': '03', '4': '04', '5': '05' };
+  const bucket = keyToBucket[e.key];
 
   if (bucket) {
     await handleClassification(bucket);

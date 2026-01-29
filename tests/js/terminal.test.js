@@ -366,3 +366,59 @@ describe('formatHexCoord', () => {
     expect(result1.hexY).toBe(result2.hexY);
   });
 });
+
+describe('seeded game creation', () => {
+  it('same answers produce same grid values', () => {
+    const answers = [
+      { questionId: 'q1', answer: 'cake' },
+      { questionId: 'q2', answer: 'blue' },
+    ];
+
+    const state1 = createInitialGameState(5, 5, answers);
+    const state2 = createInitialGameState(5, 5, answers);
+
+    // Same answers should produce identical grids
+    for (let y = 0; y < 5; y++) {
+      for (let x = 0; x < 5; x++) {
+        expect(state1.grid[y][x].value).toBe(state2.grid[y][x].value);
+      }
+    }
+  });
+
+  it('different answers produce different grid values', () => {
+    const answers1 = [{ questionId: 'q1', answer: 'cake' }];
+    const answers2 = [{ questionId: 'q1', answer: 'pie' }];
+
+    const state1 = createInitialGameState(10, 10, answers1);
+    const state2 = createInitialGameState(10, 10, answers2);
+
+    // Different answers should produce different grids
+    // (check that at least some values differ)
+    let differences = 0;
+    for (let y = 0; y < 10; y++) {
+      for (let x = 0; x < 10; x++) {
+        if (state1.grid[y][x].value !== state2.grid[y][x].value) {
+          differences++;
+        }
+      }
+    }
+    expect(differences).toBeGreaterThan(0);
+  });
+
+  it('no answers produces random grid (not seeded)', () => {
+    // Without answers, grids should differ between calls
+    // (probabilistically - with 100 cells, extremely unlikely to match)
+    const state1 = createInitialGameState(10, 10);
+    const state2 = createInitialGameState(10, 10);
+
+    let differences = 0;
+    for (let y = 0; y < 10; y++) {
+      for (let x = 0; x < 10; x++) {
+        if (state1.grid[y][x].value !== state2.grid[y][x].value) {
+          differences++;
+        }
+      }
+    }
+    expect(differences).toBeGreaterThan(0);
+  });
+});

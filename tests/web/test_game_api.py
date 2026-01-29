@@ -77,7 +77,7 @@ class TestGameState:
         assert len(data.grid) == 25
         assert len(data.grid[0]) == 40
         assert data.progress == 0
-        assert set(data.bins.keys()) == {"WO", "FC", "DR", "MA"}
+        assert set(data.bins.keys()) == {"01", "02", "03", "04", "05"}
 
 
 class TestSelection:
@@ -118,7 +118,7 @@ class TestClassification:
     def test_wrong_bucket_fails(self, client: TestClient, playing_game, select_hinted_region):
         """Classifying cells to the wrong bucket fails."""
         correct_bucket = select_hinted_region
-        wrong_bucket = "FC" if correct_bucket != "FC" else "WO"
+        wrong_bucket = "02" if correct_bucket != "02" else "01"
 
         data = ClassifyResponse(**client.post("/api/classify", json={"bucket": wrong_bucket}).json())
 
@@ -128,7 +128,7 @@ class TestClassification:
     def test_failed_classification_clears_selection(self, client: TestClient, playing_game, select_hinted_region):
         """Failed classification clears the selection."""
         correct_bucket = select_hinted_region
-        wrong_bucket = "FC" if correct_bucket != "FC" else "WO"
+        wrong_bucket = "02" if correct_bucket != "02" else "01"
 
         client.post("/api/classify", json={"bucket": wrong_bucket})
 
@@ -145,5 +145,5 @@ class TestHints:
         data = HintResponse(**client.get("/api/hint").json())
 
         assert data.region is not None
-        assert data.region.bucket in {"WO", "FC", "DR", "MA"}
+        assert data.region.bucket in {"01", "02", "03", "04", "05"}
         assert len(data.region.positions) > 0
