@@ -24,6 +24,8 @@ import {
 } from './onboarding.js';
 
 import { selectQuestions } from './questions.js';
+import { DEFAULT_BEHAVIOR, getBehaviorClass, getBehaviorAudioConfig } from './behaviors.js';
+import { createAudioEngine, createLeitmotif } from './audio.js';
 
 // ============================================================================
 // Application State
@@ -38,6 +40,7 @@ const AppScreen = {
 let currentScreen = AppScreen.WELCOME;
 let onboardingState = null;
 let gameState = null;
+let audioEngine = null;
 
 // ============================================================================
 // DOM References - Screens
@@ -146,6 +149,14 @@ function startGame(answers) {
   gameState = createInitialGameState();
   showScreen(AppScreen.GAME);
   renderGame();
+
+  // Start the default behavior's leitmotif
+  const audioConfig = getBehaviorAudioConfig(DEFAULT_BEHAVIOR);
+  if (audioConfig) {
+    audioEngine = createAudioEngine();
+    const leitmotif = createLeitmotif(audioConfig);
+    audioEngine.start(leitmotif);
+  }
 }
 
 function renderGame() {
@@ -161,7 +172,19 @@ function renderGame() {
       if (cell.size === 2) classes.push('size-medium');
       if (cell.size === 3) classes.push('size-large');
 
-      html += `<div class="${classes.join(' ')}" data-x="${cell.x}" data-y="${cell.y}">${cell.value}</div>`;
+      // Apply default behavior animation to unclassified cells
+      let style = '';
+      if (!cell.classified) {
+        const behaviorClass = getBehaviorClass(DEFAULT_BEHAVIOR);
+        if (behaviorClass) {
+          classes.push(behaviorClass);
+          // Random delay so they don't jiggle in unison
+          const delay = (Math.random() * 0.8).toFixed(2);
+          style = `animation-delay: ${delay}s;`;
+        }
+      }
+
+      html += `<div class="${classes.join(' ')}" style="${style}" data-x="${cell.x}" data-y="${cell.y}">${cell.value}</div>`;
     }
   }
   gridEl.innerHTML = html;
