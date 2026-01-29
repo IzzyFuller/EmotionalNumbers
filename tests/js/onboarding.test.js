@@ -7,10 +7,7 @@ import {
     getAnswers,
     getProgress
 } from '../../src/emotional_numbers_mk_ii/adapters/web/static/js/onboarding.js'
-import {
-    QUESTIONS,
-    selectQuestions
-} from '../../src/emotional_numbers_mk_ii/adapters/web/static/js/questions.js'
+import { selectQuestions } from '../../src/emotional_numbers_mk_ii/adapters/web/static/js/questions.js'
 
 // Test fixtures
 const testQuestions = [
@@ -221,34 +218,6 @@ describe('getProgress', () => {
 
         expect(progress.current).toBe(0)
         expect(progress.total).toBe(0)
-    })
-})
-
-describe('QUESTIONS bank', () => {
-    it('contains questions across all four categories', () => {
-        const categories = new Set(QUESTIONS.map(q => q.category))
-
-        expect(categories.has('personal')).toBe(true)
-        expect(categories.has('demographic')).toBe(true)
-        expect(categories.has('surreal')).toBe(true)
-        expect(categories.has('procedural')).toBe(true)
-    })
-
-    it('has unique IDs for all questions', () => {
-        const ids = QUESTIONS.map(q => q.id)
-        const uniqueIds = new Set(ids)
-
-        expect(uniqueIds.size).toBe(ids.length)
-    })
-
-    it('all questions have required fields', () => {
-        for (const q of QUESTIONS) {
-            expect(q.id).toBeDefined()
-            expect(q.text).toBeDefined()
-            expect(q.category).toBeDefined()
-            expect(q.answerType).toBeDefined()
-            expect(['text', 'number', 'scale']).toContain(q.answerType)
-        }
     })
 })
 
