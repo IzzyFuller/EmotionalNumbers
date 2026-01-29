@@ -1,8 +1,7 @@
 /**
  * MDR Terminal Game Logic
  *
- * Pure functions for game state management.
- * All functions are side-effect free and return new state objects.
+ * Functions for game state management.
  *
  * Tests: tests/js/terminal.test.js
  */
@@ -85,79 +84,45 @@ export function createInitialGameState(rows = 25, cols = 40) {
 }
 
 // ============================================================================
-// State Cloning (Immutability Helpers)
-// ============================================================================
-
-/**
- * Deep clones a cell object.
- */
-function cloneCell(cell) {
-  return { ...cell };
-}
-
-/**
- * Deep clones a grid (2D array of cells).
- */
-function cloneGrid(grid) {
-  return grid.map((row) => row.map(cloneCell));
-}
-
-/**
- * Deep clones game state.
- */
-function cloneGameState(gameState) {
-  return {
-    ...gameState,
-    grid: cloneGrid(gameState.grid),
-    bins: { ...gameState.bins },
-  };
-}
-
-// ============================================================================
 // Cell Selection
 // ============================================================================
 
 /**
  * Toggles selection state of a cell at given coordinates.
- * Returns new state (immutable).
  *
  * @param {Object} gameState - Current game state
  * @param {number} x - Column position
  * @param {number} y - Row position
- * @returns {Object} New game state with toggled cell
+ * @returns {Object} Game state with toggled cell
  */
 export function toggleCellSelection(gameState, x, y) {
-  const newState = cloneGameState(gameState);
-  const cell = newState.grid[y][x];
+  const cell = gameState.grid[y][x];
 
   if (cell.classified) {
-    return newState;
+    return gameState;
   }
 
   cell.selected = !cell.selected;
   cell.size = cell.selected ? 2 + Math.floor(Math.random() * 2) : 1;
 
-  return newState;
+  return gameState;
 }
 
 /**
  * Clears all cell selections and resets sizes.
- * Returns new state (immutable).
  *
  * @param {Object} gameState - Current game state
- * @returns {Object} New game state with cleared selections
+ * @returns {Object} Game state with cleared selections
  */
 export function clearSelection(gameState) {
-  const newState = cloneGameState(gameState);
-
-  for (const row of newState.grid) {
+  for (const row of gameState.grid) {
     for (const cell of row) {
       cell.selected = false;
       cell.size = 1;
     }
   }
 
-  return newState;
+  return gameState;
 }
 
 // ============================================================================
@@ -218,14 +183,13 @@ function findCellsReachingEdge(grid) {
  *
  * @param {Object} gameState - Current game state
  * @param {string} bin - Bin identifier ('01' through '05')
- * @returns {Object} New game state with classifiedCount property
+ * @returns {Object} Game state with classifiedCount property
  */
 export function classifySurroundedToBin(gameState, bin) {
-  const newState = cloneGameState(gameState);
-  const canReachEdge = findCellsReachingEdge(newState.grid);
+  const canReachEdge = findCellsReachingEdge(gameState.grid);
   let classifiedCount = 0;
 
-  for (const row of newState.grid) {
+  for (const row of gameState.grid) {
     for (const cell of row) {
       const key = `${cell.x},${cell.y}`;
 
@@ -240,10 +204,10 @@ export function classifySurroundedToBin(gameState, bin) {
     }
   }
 
-  newState.bins[bin] += classifiedCount;
-  newState.classifiedCount = classifiedCount;
+  gameState.bins[bin] += classifiedCount;
+  gameState.classifiedCount = classifiedCount;
 
-  return newState;
+  return gameState;
 }
 
 // ============================================================================
