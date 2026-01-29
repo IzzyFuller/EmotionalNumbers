@@ -46,6 +46,13 @@ class CellModel(BaseModel):
     classified: bool
 
 
+class BehaviorModel(BaseModel):
+    bucket: str
+    jiggle_intensity: float
+    jiggle_frequency: float
+    sound_id: str
+
+
 class AnswersResponse(BaseModel):
     phase: str
     grid: list[list[CellModel]]
@@ -55,6 +62,7 @@ class StateResponse(BaseModel):
     grid: list[list[CellModel]]
     bins: dict[str, int]
     progress: int
+    behaviors: list[BehaviorModel]
 
 
 class SelectResponse(BaseModel):

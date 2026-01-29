@@ -25,7 +25,7 @@ Here's what you don't know:
 
 **The rules change every game.** Each session, an AI generates new hidden rules that determine which numbers belong in which buckets. The rules might be based on position, value, neighbors, or something stranger.
 
-**The hints are there, but unexplained.** Numbers give off signals - maybe they jiggle differently, maybe their position matters, maybe something about their neighbors. The signals are consistent within a game, but you have to discover what they mean.
+**The hints are there, but unexplained.** Numbers give off signals - each bucket has its own jiggle intensity, jiggle frequency, and associated sound. The signals are consistent within a game, but you have to discover what they mean.
 
 **Onboarding shapes the puzzle.** Before each game, you answer a few strange questions. Your answers influence the puzzle in ways you cannot see. The connection is real but mysterious.
 
@@ -88,10 +88,20 @@ npm install
 ### Running the Server
 
 ```bash
-uv run uvicorn emotional_numbers_mk_ii.adapters.web.app:app --reload --port 8000
+uv run python -m uvicorn emotional_numbers_mk_ii.adapters.web.app:app --port 8000
 ```
 
 Then open http://localhost:8000
+
+### Quick Start (TL;DR)
+
+```bash
+git clone <repo-url>
+cd EmotionalNumbers
+uv sync --extra dev
+uv run python -m uvicorn emotional_numbers_mk_ii.adapters.web.app:app --port 8000
+# Open http://localhost:8000
+```
 
 ### Running Tests
 

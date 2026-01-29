@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from emotional_numbers_mk_ii.adapters.web.api.models import (
     AnswersRequest,
     AnswersResponse,
+    BehaviorModel,
     CellModel,
     ClassifyRequest,
     ClassifyResponse,
@@ -119,6 +120,15 @@ async def get_state(session: GameSession = Depends(get_session)) -> StateRespons
         ],
         bins=session.game.bins,
         progress=session.game.progress,
+        behaviors=[
+            BehaviorModel(
+                bucket=b.bucket,
+                jiggle_intensity=b.jiggle_intensity,
+                jiggle_frequency=b.jiggle_frequency,
+                sound_id=b.sound_id,
+            )
+            for b in session.game.rule_set.behaviors
+        ],
     )
 
 
