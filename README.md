@@ -6,12 +6,7 @@ A game inspired by Macro Data Refinement from the show *Severance*.
 
 You sit at what appears to be an early terminal application - green phosphor text on a dark screen. A grid of single-digit numbers fills the display. The numbers dance subtly, some more than others.
 
-Your instructions are simple but strange: pay attention to how the numbers make you feel. When you find a group that shares a particular emotional quality, select them and assign them to one of four emotional buckets:
-
-- **WO** (Woe) - green
-- **FC** (Frolic) - yellow
-- **DR** (Dread) - red
-- **MA** (Malice) - blue
+Your instructions are simple but strange: pay attention to how the numbers make you feel. When you find a group that shares a particular emotional quality, select them and assign them to one of five buckets: **01**, **02**, **03**, **04**, **05**.
 
 If your classification is correct, the numbers disappear into the bucket. If wrong, your selection clears and you try again.
 
@@ -41,6 +36,39 @@ The entire experience evokes corporate dread through mundane presentation:
 - Sterile, bureaucratic language
 - Rewards that feel like workplace compliance incentives
 - The unsettling feeling of doing meaningful-seeming work with no visible purpose
+
+---
+
+## Test Seed: All "cake" Answers
+
+For testing and development, answering all 5 questions with "cake" produces a deterministic puzzle (seed: `897605152`) with these hidden regions on the 40x25 grid:
+
+```
+     0    5    10   15   20   25   30   35   40
+   0 ·····································───···
+   1 ·····································│··│··
+   2 ·····················111·············│3344··
+   3 ·····················111·············│3344··
+   4 ·····················111·············33····
+   5 ·····································33····
+   6 ········································
+   7 ········································
+     ...
+  14 ····························222·········
+  15 ····························222·········
+  16 ····························222·········
+     ...
+  24 ········································
+```
+
+| Region | Bucket | Position | Size |
+|--------|--------|----------|------|
+| 1 | 01 | x=23-25, y=2-4 | 3x3 (9 cells) |
+| 2 | 02 | x=28-30, y=14-16 | 3x3 (9 cells) |
+| 3 | 03 | x=31-32, y=2-5 | 2x4 (8 cells) |
+| 4 | 04 | x=31-34, y=2-3 | 4x2 (8 cells) |
+
+Note: Regions 3 and 4 overlap at positions (31,2), (32,2), (31,3), (32,3).
 
 ---
 
