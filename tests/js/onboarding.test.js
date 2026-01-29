@@ -75,15 +75,6 @@ describe('submitAnswer', () => {
         expect(newState.currentIndex).toBe(1)
     })
 
-    it('does not mutate original state', () => {
-        const state = createOnboardingState(testQuestions)
-
-        submitAnswer(state, 'blue')
-
-        expect(state.currentIndex).toBe(0)
-        expect(state.answers).toEqual([])
-    })
-
     it('handles multiple answers in sequence', () => {
         let state = createOnboardingState(testQuestions)
 

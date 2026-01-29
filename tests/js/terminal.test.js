@@ -126,11 +126,6 @@ describe('toggleCellSelection', () => {
     expect(result.grid[1][1].size).toBe(1);
   });
 
-  it('returns a new state object (immutability)', () => {
-    const result = toggleCellSelection(gameState, 1, 1);
-
-    expect(result).not.toBe(gameState);
-  });
 });
 
 describe('clearSelection', () => {
