@@ -41,13 +41,14 @@ export function createLeitmotif(config) {
 // Audio Engine Factory
 // ============================================================================
 
+const VOLUME = 0.3;
+
 export function createAudioEngine(audioContext) {
   let playing = false;
-  let volume = 0.3;
 
   const gainNode = audioContext.createGain();
   gainNode.connect(audioContext.destination);
-  gainNode.gain.value = volume;
+  gainNode.gain.value = VOLUME;
 
   let oscillators = [];
   let currentLeitmotif = null;
@@ -117,11 +118,6 @@ export function createAudioEngine(audioContext) {
     stop() {
       playing = false;
       stopLeitmotif();
-    },
-
-    setVolume(v) {
-      volume = Math.max(0, Math.min(1, v));
-      gainNode.gain.value = volume;
     },
 
     isPlaying() {
