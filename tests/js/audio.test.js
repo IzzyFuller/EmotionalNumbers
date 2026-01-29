@@ -23,17 +23,10 @@ describe('createAudioEngine', () => {
 
 describe('createLeitmotif', () => {
   it('produces frequencies from config', () => {
-    const leitmotif = createLeitmotif({ baseFrequency: 440 });
+    const leitmotif = createLeitmotif({ baseFrequency: 440, pattern: 'ambient' });
 
     expect(Array.isArray(leitmotif.frequencies)).toBe(true);
     expect(leitmotif.frequencies.length).toBeGreaterThan(0);
     expect(leitmotif.frequencies.every((f) => typeof f === 'number')).toBe(true);
-  });
-
-  it('handles empty config gracefully', () => {
-    const leitmotif = createLeitmotif({});
-
-    expect(Array.isArray(leitmotif.frequencies)).toBe(true);
-    expect(leitmotif.frequencies.length).toBeGreaterThan(0);
   });
 });

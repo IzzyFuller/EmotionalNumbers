@@ -37,12 +37,10 @@ const PATTERNS = {
  * @param {string} config.pattern - Pattern name from PATTERNS
  * @returns {Object} Leitmotif object
  */
-export function createLeitmotif(config = {}) {
-  const name = config.name ?? 'default';
-  const baseFrequency = config.baseFrequency ?? 220;
-  const pattern = config.pattern ?? 'ambient';
+export function createLeitmotif(config) {
+  const { name, baseFrequency, pattern } = config;
 
-  const patternConfig = PATTERNS[pattern] ?? PATTERNS.ambient;
+  const patternConfig = PATTERNS[pattern];
   const frequencies = patternConfig.ratios.map((r) => baseFrequency * r);
 
   return {
