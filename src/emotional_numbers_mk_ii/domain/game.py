@@ -164,8 +164,8 @@ def generate_rule_set(seed: int, rows: int = 25, cols: int = 40) -> RuleSet:
     buckets = ["01", "02", "03", "04", "05"]
     regions = []
 
-    # Generate 4-6 regions
-    num_regions = rng.randint(4, 6)
+    # Generate 5 regions (one per bucket)
+    num_regions = 5
 
     for i in range(num_regions):
         bucket = buckets[i % len(buckets)]
