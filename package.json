@@ -1,0 +1,19 @@
+{
+  "name": "emotional_numbers_mk_ii",
+  "version": "1.0.0",
+  "description": "A game inspired by Macro Data Refinement from the show *Severance*.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.18",
+    "jsdom": "^27.4.0",
+    "vitest": "^4.0.18"
+  }
+}

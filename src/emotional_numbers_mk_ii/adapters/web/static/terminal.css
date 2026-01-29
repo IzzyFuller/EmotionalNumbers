@@ -1,0 +1,304 @@
+/* Severance MDR Terminal - Authentic Recreation */
+
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+:root {
+    --mdr-cyan: #00d4ff;
+    --mdr-cyan-dim: #006688;
+    --mdr-cyan-bright: #66eeff;
+    --mdr-glow: rgba(0, 212, 255, 0.5);
+    --mdr-glow-strong: rgba(0, 212, 255, 0.8);
+    --bg-deep: #000a0f;
+    --bg-terminal: #001018;
+    --scanline-opacity: 0.03;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'VT323', monospace;
+    background: var(--bg-deep);
+    color: var(--mdr-cyan);
+    min-height: 100vh;
+    overflow: hidden;
+    /* Prevent browser zoom on trackpad gestures */
+    touch-action: manipulation;
+}
+
+/* CRT Container with Effects */
+.crt-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* Scanlines */
+.crt-container::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, var(--scanline-opacity)),
+        rgba(0, 0, 0, var(--scanline-opacity)) 1px,
+        transparent 1px,
+        transparent 2px
+    );
+    pointer-events: none;
+    z-index: 1000;
+}
+
+/* Subtle vignette */
+.crt-container::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0, 0, 0, 0.4) 100%);
+    pointer-events: none;
+    z-index: 999;
+}
+
+/* Terminal Screen */
+.terminal {
+    background: var(--bg-terminal);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 0;
+}
+
+/* Header Bar - Severance Style */
+.header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 20px;
+    margin: 0 10px;
+    border: 1px solid var(--mdr-cyan-dim);
+    font-size: 18px;
+}
+
+.file-name {
+    color: var(--mdr-cyan);
+    text-shadow: 0 0 10px var(--mdr-glow);
+}
+
+.progress-display {
+    color: var(--mdr-cyan-bright);
+    text-shadow: 0 0 15px var(--mdr-glow-strong);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.lumon-icon {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--mdr-cyan);
+    border-radius: 50%;
+    position: relative;
+}
+
+.lumon-icon::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: var(--mdr-cyan);
+    border-radius: 50%;
+}
+
+.lumon-brand {
+    color: var(--mdr-cyan);
+    letter-spacing: 3px;
+    text-shadow: 0 0 10px var(--mdr-glow);
+}
+
+/* Number Grid Area */
+.grid-area {
+    flex: 1;
+    padding: 20px;
+    overflow: hidden;
+    position: relative;
+}
+
+.grid {
+    display: grid;
+    gap: 2px;
+    cursor: default;
+    width: 100%;
+    height: 100%;
+}
+
+.cell {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(14px, 2vw, 22px);
+    color: var(--mdr-cyan-dim);
+    cursor: pointer;
+    transition: color 0.15s ease, transform 0.15s ease, text-shadow 0.15s ease;
+    user-select: none;
+}
+
+.cell:hover:not(.classified) {
+    color: var(--mdr-cyan-bright);
+    text-shadow: 0 0 15px var(--mdr-glow), 0 0 30px var(--mdr-cyan);
+    transform: scale(1.3);
+    z-index: 5;
+}
+
+.cell.selected {
+    color: var(--mdr-cyan-bright);
+    text-shadow: 0 0 20px var(--mdr-glow-strong), 0 0 40px var(--mdr-cyan);
+    transform: scale(1.1);
+    z-index: 10;
+}
+
+.cell.size-medium {
+    transform: scale(1.15);
+    font-weight: bold;
+}
+
+.cell.size-large {
+    transform: scale(1.3);
+    font-weight: bold;
+}
+
+.cell.classified {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+}
+
+/* Bins Container */
+.bins-container {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    padding: 15px 20px;
+    border-top: 1px solid var(--mdr-cyan-dim);
+}
+
+.bin {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 8px;
+    border: 1px solid var(--mdr-cyan-dim);
+    transition: all 0.2s ease;
+}
+
+.bin:hover {
+    border-color: var(--mdr-cyan);
+    box-shadow: 0 0 15px var(--mdr-glow);
+}
+
+.bin-label {
+    font-size: 20px;
+    color: var(--mdr-cyan);
+    margin-bottom: 8px;
+    text-shadow: 0 0 10px var(--mdr-glow);
+}
+
+.bin-progress {
+    width: 60px;
+    height: 8px;
+    background: var(--bg-deep);
+    border: 1px solid var(--mdr-cyan-dim);
+    overflow: hidden;
+}
+
+.bin-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--mdr-cyan);
+    box-shadow: 0 0 10px var(--mdr-glow);
+    transition: width 0.3s ease;
+}
+
+/* Hex Footer */
+.hex-footer {
+    display: flex;
+    justify-content: center;
+    padding: 12px 20px;
+    font-size: 18px;
+}
+
+.hex-coords {
+    color: var(--mdr-cyan);
+    font-family: 'VT323', monospace;
+    text-shadow: 0 0 10px var(--mdr-glow);
+    letter-spacing: 1px;
+}
+
+.hex-coords #hex-x,
+.hex-coords #hex-y {
+    transition: color 0.1s ease;
+}
+
+/* Message Area */
+#message-area {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+}
+
+.message {
+    padding: 10px 20px;
+    border: 1px solid var(--mdr-cyan);
+    background: rgba(0, 16, 24, 0.95);
+    color: var(--mdr-cyan-bright);
+    text-shadow: 0 0 10px var(--mdr-glow);
+    animation: fadeIn 0.3s ease;
+}
+
+.message.success {
+    border-color: var(--mdr-cyan);
+}
+
+.message.error {
+    border-color: #ff4444;
+    color: #ff6666;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Jiggle animations for "emotional" numbers */
+.cell.jiggle {
+    animation: jiggle 0.15s ease-in-out infinite;
+}
+
+@keyframes jiggle {
+    0%, 100% { transform: translate(0, 0); }
+    25% { transform: translate(-1px, 0.5px); }
+    50% { transform: translate(0.5px, -0.5px); }
+    75% { transform: translate(-0.5px, -1px); }
+}
+
+/* Selected cells don't jiggle */
+.cell.selected.jiggle {
+    animation: none;
+}
