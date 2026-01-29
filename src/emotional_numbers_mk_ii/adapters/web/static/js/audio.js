@@ -2,8 +2,7 @@
  * Audio Engine Module
  *
  * Provides ambient leitmotifs for number behaviors using Web Audio API.
- * Pure configuration functions are testable; actual audio playback
- * requires browser context.
+ * Assumes AudioContext is available - caller should check before using.
  *
  * Tests: tests/js/audio.test.js
  */
@@ -12,13 +11,8 @@
 // Leitmotif Patterns
 // ============================================================================
 
-/**
- * Frequency patterns for different leitmotif types.
- * Ratios are applied to baseFrequency.
- */
 const PATTERNS = {
   ambient: {
-    // Gentle fifth intervals for neutral, pleasant drone
     ratios: [1, 1.5, 2, 1.5],
     noteDuration: 2000,
     overlap: 0.8,
@@ -31,15 +25,9 @@ const PATTERNS = {
 
 /**
  * Creates a leitmotif configuration.
- * @param {Object} config - Leitmotif configuration
- * @param {string} config.name - Leitmotif name
- * @param {number} config.baseFrequency - Base frequency in Hz
- * @param {string} config.pattern - Pattern name from PATTERNS
- * @returns {Object} Leitmotif object
  */
 export function createLeitmotif(config) {
   const { name, baseFrequency, pattern } = config;
-
   const patternConfig = PATTERNS[pattern];
   const frequencies = patternConfig.ratios.map((r) => baseFrequency * r);
 
@@ -59,30 +47,21 @@ export function createLeitmotif(config) {
 
 /**
  * Creates an audio engine for playing leitmotifs.
- * Uses Web Audio API when available.
- * @returns {Object} Audio engine interface
+ * Requires AudioContext to be available.
  */
 export function createAudioEngine() {
   let playing = false;
   let volume = 0.3;
-  let audioContext = null;
+  const audioContext = new AudioContext();
+  const gainNode = audioContext.createGain();
+  gainNode.connect(audioContext.destination);
+  gainNode.gain.value = volume;
+
   let oscillators = [];
-  let gainNode = null;
   let currentLeitmotif = null;
   let intervalId = null;
 
-  function initContext() {
-    if (!audioContext && typeof AudioContext !== 'undefined') {
-      audioContext = new AudioContext();
-      gainNode = audioContext.createGain();
-      gainNode.connect(audioContext.destination);
-      gainNode.gain.value = volume;
-    }
-  }
-
   function playNote(frequency, duration) {
-    if (!audioContext || !gainNode) return;
-
     const osc = audioContext.createOscillator();
     const noteGain = audioContext.createGain();
 
@@ -92,7 +71,6 @@ export function createAudioEngine() {
     osc.connect(noteGain);
     noteGain.connect(gainNode);
 
-    // Gentle envelope
     const now = audioContext.currentTime;
     noteGain.gain.setValueAtTime(0, now);
     noteGain.gain.linearRampToValueAtTime(0.5, now + 0.1);
@@ -108,7 +86,6 @@ export function createAudioEngine() {
   }
 
   function startLeitmotif(leitmotif) {
-    if (!leitmotif) return;
     currentLeitmotif = leitmotif;
 
     let noteIndex = 0;
@@ -144,8 +121,7 @@ export function createAudioEngine() {
 
   return {
     start(leitmotif) {
-      initContext();
-      if (audioContext?.state === 'suspended') {
+      if (audioContext.state === 'suspended') {
         audioContext.resume();
       }
       playing = true;
@@ -159,9 +135,7 @@ export function createAudioEngine() {
 
     setVolume(v) {
       volume = Math.max(0, Math.min(1, v));
-      if (gainNode) {
-        gainNode.gain.value = volume;
-      }
+      gainNode.gain.value = volume;
     },
 
     isPlaying() {

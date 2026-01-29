@@ -150,9 +150,9 @@ function startGame(answers) {
   showScreen(AppScreen.GAME);
   renderGame();
 
-  // Start the default behavior's leitmotif
-  const audioConfig = getBehaviorAudioConfig(DEFAULT_BEHAVIOR);
-  if (audioConfig) {
+  // Start the default behavior's leitmotif (if audio available)
+  if (typeof AudioContext !== 'undefined') {
+    const audioConfig = getBehaviorAudioConfig(DEFAULT_BEHAVIOR);
     audioEngine = createAudioEngine();
     const leitmotif = createLeitmotif(audioConfig);
     audioEngine.start(leitmotif);
