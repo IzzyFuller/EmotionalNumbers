@@ -153,7 +153,8 @@ function startGame(answers) {
   // Start the default behavior's leitmotif (if audio available)
   if (typeof AudioContext !== 'undefined') {
     const audioConfig = getBehaviorAudioConfig(DEFAULT_BEHAVIOR);
-    audioEngine = createAudioEngine();
+    const audioContext = new AudioContext();
+    audioEngine = createAudioEngine(audioContext);
     const leitmotif = createLeitmotif(audioConfig);
     audioEngine.start(leitmotif);
   }

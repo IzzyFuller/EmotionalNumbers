@@ -2,7 +2,6 @@
  * Audio Engine Module
  *
  * Provides ambient leitmotifs for number behaviors using Web Audio API.
- * Assumes AudioContext is available - caller should check before using.
  *
  * Tests: tests/js/audio.test.js
  */
@@ -23,9 +22,6 @@ const PATTERNS = {
 // Leitmotif Factory
 // ============================================================================
 
-/**
- * Creates a leitmotif configuration.
- */
 export function createLeitmotif(config) {
   const { name, baseFrequency, pattern } = config;
   const patternConfig = PATTERNS[pattern];
@@ -45,14 +41,10 @@ export function createLeitmotif(config) {
 // Audio Engine Factory
 // ============================================================================
 
-/**
- * Creates an audio engine for playing leitmotifs.
- * Requires AudioContext to be available.
- */
-export function createAudioEngine() {
+export function createAudioEngine(audioContext) {
   let playing = false;
   let volume = 0.3;
-  const audioContext = new AudioContext();
+
   const gainNode = audioContext.createGain();
   gainNode.connect(audioContext.destination);
   gainNode.gain.value = volume;
@@ -108,13 +100,7 @@ export function createAudioEngine() {
       clearInterval(intervalId);
       intervalId = null;
     }
-    oscillators.forEach((osc) => {
-      try {
-        osc.stop();
-      } catch (e) {
-        // Already stopped
-      }
-    });
+    oscillators.forEach((osc) => osc.stop());
     oscillators = [];
     currentLeitmotif = null;
   }
