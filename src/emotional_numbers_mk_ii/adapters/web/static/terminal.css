@@ -302,3 +302,195 @@ body {
 .cell.selected.jiggle {
     animation: none;
 }
+
+/* ========== SCREEN MANAGEMENT ========== */
+
+.screen {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+/* ========== WELCOME SCREEN ========== */
+
+#welcome-screen {
+    justify-content: center;
+    align-items: center;
+}
+
+.welcome-content {
+    text-align: center;
+    max-width: 600px;
+    padding: 40px;
+}
+
+.lumon-logo {
+    margin-bottom: 30px;
+}
+
+.lumon-icon.large {
+    width: 60px;
+    height: 60px;
+    border-width: 3px;
+    margin: 0 auto;
+}
+
+.lumon-icon.large::after {
+    width: 24px;
+    height: 24px;
+}
+
+.welcome-title {
+    font-size: 36px;
+    font-weight: normal;
+    color: var(--mdr-cyan);
+    text-shadow: 0 0 20px var(--mdr-glow);
+    letter-spacing: 4px;
+    margin-bottom: 10px;
+}
+
+.welcome-subtitle {
+    font-size: 18px;
+    font-weight: normal;
+    color: var(--mdr-cyan-dim);
+    letter-spacing: 2px;
+    margin-bottom: 40px;
+}
+
+.welcome-text {
+    margin-bottom: 40px;
+    line-height: 1.8;
+}
+
+.welcome-text p {
+    font-size: 20px;
+    margin-bottom: 8px;
+}
+
+.welcome-text p.dim {
+    color: var(--mdr-cyan-dim);
+}
+
+/* ========== BUTTONS ========== */
+
+.btn {
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    padding: 12px 40px;
+    background: transparent;
+    color: var(--mdr-cyan);
+    border: 1px solid var(--mdr-cyan);
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    background: var(--mdr-cyan);
+    color: var(--bg-deep);
+    box-shadow: 0 0 20px var(--mdr-glow);
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+/* ========== ONBOARDING SCREEN ========== */
+
+#onboarding-screen {
+    padding: 20px;
+}
+
+.onboarding-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border: 1px solid var(--mdr-cyan-dim);
+    margin-bottom: 20px;
+}
+
+.question-progress {
+    color: var(--mdr-cyan);
+    font-size: 18px;
+    letter-spacing: 1px;
+}
+
+.onboarding-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 20px;
+}
+
+.question-container {
+    text-align: center;
+    max-width: 700px;
+    margin-bottom: 50px;
+}
+
+.question-text {
+    font-size: 28px;
+    color: var(--mdr-cyan-bright);
+    text-shadow: 0 0 15px var(--mdr-glow);
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.question-hint {
+    font-size: 16px;
+    color: var(--mdr-cyan-dim);
+}
+
+.answer-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 500px;
+}
+
+.answer-input {
+    font-family: 'VT323', monospace;
+    font-size: 24px;
+    width: 100%;
+    padding: 15px 20px;
+    background: var(--bg-deep);
+    border: 1px solid var(--mdr-cyan-dim);
+    color: var(--mdr-cyan-bright);
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.answer-input::placeholder {
+    color: var(--mdr-cyan-dim);
+}
+
+.answer-input:focus {
+    border-color: var(--mdr-cyan);
+    box-shadow: 0 0 15px var(--mdr-glow);
+}
+
+.onboarding-footer {
+    padding: 20px;
+}
+
+.progress-bar {
+    height: 4px;
+    background: var(--bg-deep);
+    border: 1px solid var(--mdr-cyan-dim);
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--mdr-cyan);
+    box-shadow: 0 0 10px var(--mdr-glow);
+    transition: width 0.3s ease;
+}

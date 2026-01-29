@@ -11,6 +11,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
     "httpx>=0.27.0",
 ]
 
@@ -23,3 +24,23 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/emotional_numbers_mk_ii"]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/__init__.py",
+    "*/protocols/*",
+    "**/main.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@abstractmethod",
+    "Protocol",
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov --cov-report=term-missing --cov-report=lcov:coverage/lcov-python.info"

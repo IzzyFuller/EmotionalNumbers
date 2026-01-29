@@ -44,4 +44,53 @@ The entire experience evokes corporate dread through mundane presentation:
 
 ---
 
+## Development
+
+### Setup
+
+```bash
+# Install Python dependencies
+uv sync --all-extras
+
+# Install JS dependencies
+npm install
+```
+
+### Running the Server
+
+```bash
+uv run uvicorn emotional_numbers_mk_ii.adapters.web.app:app --reload --port 8000
+```
+
+Then open http://localhost:8000
+
+### Running Tests
+
+```bash
+# All tests
+npm test && uv run pytest
+
+# With coverage
+npm test -- --coverage && uv run pytest
+```
+
+### Test Coverage in VS Code
+
+Coverage is configured for both JS (Vitest) and Python (pytest-cov).
+
+1. Install the **Coverage Gutters** extension
+2. Run tests with coverage: `npm test -- --coverage && uv run pytest`
+3. Open a source file and click **Watch** in the status bar (or `Cmd+Shift+P` → "Coverage Gutters: Display Coverage")
+
+Coverage files are output to `coverage/`:
+- `lcov.info` - JavaScript coverage
+- `lcov-python.info` - Python coverage
+
+**Excluded from Python coverage:**
+- `__init__.py` files
+- `protocols/` directories
+- `main.py` files
+
+---
+
 *"The work is mysterious and important."*

@@ -4,70 +4,130 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>LUMON MDR TERMINAL</title>
-    <link rel="stylesheet" href="/static/terminal.css?v=7">
+    <link rel="stylesheet" href="/static/terminal.css?v=8">
 </head>
 <body>
     <div class="crt-container">
         <div class="terminal">
-            <!-- Header Bar - Severance Style -->
-            <div class="header-bar">
-                <span class="file-name" id="file-name">Pacoima</span>
-                <span class="progress-display">
-                    <span id="progress-percent">0</span>% Complete
-                    <span class="lumon-icon"></span>
-                </span>
-                <span class="lumon-brand">LUMON</span>
-            </div>
 
-            <!-- Number Grid - Full Width -->
-            <div class="grid-area">
-                <div class="grid" id="grid"></div>
-            </div>
+            <!-- ========== WELCOME SCREEN ========== -->
+            <div id="welcome-screen" class="screen">
+                <div class="welcome-content">
+                    <div class="lumon-logo">
+                        <div class="lumon-icon large"></div>
+                    </div>
+                    <h1 class="welcome-title">LUMON INDUSTRIES</h1>
+                    <h2 class="welcome-subtitle">MACRO DATA REFINEMENT DIVISION</h2>
 
-            <!-- Bins with Individual Progress Bars -->
-            <div class="bins-container">
-                <div class="bin" data-bin="01">
-                    <div class="bin-label">01</div>
-                    <div class="bin-progress">
-                        <div class="bin-progress-fill" id="bin-01-fill"></div>
+                    <div class="welcome-text">
+                        <p>Welcome to Lumon Industries.</p>
+                        <p>You have been selected for Macro Data Refinement.</p>
+                        <p>Please complete the orientation questionnaire.</p>
+                        <p>Your responses will calibrate your experience.</p>
+                        <p class="dim">There are no wrong answers.</p>
+                        <p class="dim">Lumon cares about your wellbeing.</p>
                     </div>
-                </div>
-                <div class="bin" data-bin="02">
-                    <div class="bin-label">02</div>
-                    <div class="bin-progress">
-                        <div class="bin-progress-fill" id="bin-02-fill"></div>
-                    </div>
-                </div>
-                <div class="bin" data-bin="03">
-                    <div class="bin-label">03</div>
-                    <div class="bin-progress">
-                        <div class="bin-progress-fill" id="bin-03-fill"></div>
-                    </div>
-                </div>
-                <div class="bin" data-bin="04">
-                    <div class="bin-label">04</div>
-                    <div class="bin-progress">
-                        <div class="bin-progress-fill" id="bin-04-fill"></div>
-                    </div>
-                </div>
-                <div class="bin" data-bin="05">
-                    <div class="bin-label">05</div>
-                    <div class="bin-progress">
-                        <div class="bin-progress-fill" id="bin-05-fill"></div>
-                    </div>
+
+                    <button class="btn" id="begin-btn">BEGIN ORIENTATION</button>
                 </div>
             </div>
 
-            <!-- Hex Codes Footer - Pointer Coordinates -->
-            <div class="hex-footer">
-                <span class="hex-coords"><span id="hex-x">0x00000000</span>:<span id="hex-y">0x00000000</span></span>
+            <!-- ========== ONBOARDING SCREEN ========== -->
+            <div id="onboarding-screen" class="screen" style="display: none;">
+                <div class="onboarding-header">
+                    <span class="lumon-brand">LUMON</span>
+                    <span class="question-progress">
+                        QUESTION <span id="q-current">1</span> OF <span id="q-total">5</span>
+                    </span>
+                </div>
+
+                <div class="onboarding-content">
+                    <div class="question-container">
+                        <div class="question-text" id="question-text"></div>
+                        <div class="question-hint" id="question-hint">[Enter your response]</div>
+                    </div>
+
+                    <div class="answer-container">
+                        <input type="text"
+                               class="answer-input"
+                               id="answer-input"
+                               placeholder="Type response..."
+                               autocomplete="off"
+                               autofocus>
+                        <button class="btn" id="submit-btn">SUBMIT</button>
+                    </div>
+                </div>
+
+                <div class="onboarding-footer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="onboarding-progress"></div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Message Area (for hints/feedback) -->
-            <div id="message-area"></div>
+            <!-- ========== GAME SCREEN ========== -->
+            <div id="game-screen" class="screen" style="display: none;">
+                <!-- Header Bar - Severance Style -->
+                <div class="header-bar">
+                    <span class="file-name" id="file-name">Pacoima</span>
+                    <span class="progress-display">
+                        <span id="progress-percent">0</span>% Complete
+                        <span class="lumon-icon"></span>
+                    </span>
+                    <span class="lumon-brand">LUMON</span>
+                </div>
+
+                <!-- Number Grid - Full Width -->
+                <div class="grid-area">
+                    <div class="grid" id="grid"></div>
+                </div>
+
+                <!-- Bins with Individual Progress Bars -->
+                <div class="bins-container">
+                    <div class="bin" data-bin="01">
+                        <div class="bin-label">01</div>
+                        <div class="bin-progress">
+                            <div class="bin-progress-fill" id="bin-01-fill"></div>
+                        </div>
+                    </div>
+                    <div class="bin" data-bin="02">
+                        <div class="bin-label">02</div>
+                        <div class="bin-progress">
+                            <div class="bin-progress-fill" id="bin-02-fill"></div>
+                        </div>
+                    </div>
+                    <div class="bin" data-bin="03">
+                        <div class="bin-label">03</div>
+                        <div class="bin-progress">
+                            <div class="bin-progress-fill" id="bin-03-fill"></div>
+                        </div>
+                    </div>
+                    <div class="bin" data-bin="04">
+                        <div class="bin-label">04</div>
+                        <div class="bin-progress">
+                            <div class="bin-progress-fill" id="bin-04-fill"></div>
+                        </div>
+                    </div>
+                    <div class="bin" data-bin="05">
+                        <div class="bin-label">05</div>
+                        <div class="bin-progress">
+                            <div class="bin-progress-fill" id="bin-05-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hex Codes Footer - Pointer Coordinates -->
+                <div class="hex-footer">
+                    <span class="hex-coords"><span id="hex-x">0x00000000</span>:<span id="hex-y">0x00000000</span></span>
+                </div>
+
+                <!-- Message Area (for hints/feedback) -->
+                <div id="message-area"></div>
+            </div>
+
         </div>
     </div>
 
-    <script type="module" src="/static/js/main.js?v=5"></script>
+    <script type="module" src="/static/js/main.js?v=6"></script>
 </body>
 </html>
