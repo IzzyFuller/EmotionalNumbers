@@ -1,29 +1,11 @@
 /**
  * MDR Terminal - DOM Integration
  *
- * Wires the pure game logic to the browser DOM.
+ * Wires the Python API to the browser DOM.
  * Manages screen transitions: Welcome → Onboarding → Game
  */
 
-import {
-  createInitialGameState,
-  toggleCellSelection,
-  clearSelection,
-  classifySurroundedToBin,
-  calculateProgress,
-  formatHexCoord,
-} from './terminal.js';
-
-import {
-  createOnboardingState,
-  getCurrentQuestion,
-  submitAnswer,
-  isComplete,
-  getAnswers,
-  getProgress,
-} from './onboarding.js';
-
-import { selectQuestions } from './questions.js';
+import * as api from './api.js';
 import { DEFAULT_BEHAVIOR, getBehaviorClass, getBehaviorAudioConfig } from './behaviors.js';
 import { createAudioEngine, createLeitmotif } from './audio.js';
 
@@ -38,7 +20,9 @@ const AppScreen = {
 };
 
 let currentScreen = AppScreen.WELCOME;
-let onboardingState = null;
+let questions = [];
+let answers = [];
+let currentQuestionIndex = 0;
 let gameState = null;
 let audioEngine = null;
 
@@ -85,9 +69,11 @@ function showScreen(screen) {
 // Welcome Screen
 // ============================================================================
 
-function handleBeginOrientation() {
-  const questions = selectQuestions(5);
-  onboardingState = createOnboardingState(questions);
+async function handleBeginOrientation() {
+  const response = await api.startGame();
+  questions = response.questions;
+  answers = [];
+  currentQuestionIndex = 0;
   showScreen(AppScreen.ONBOARDING);
   renderOnboarding();
   answerInput.focus();
@@ -98,41 +84,42 @@ function handleBeginOrientation() {
 // ============================================================================
 
 function renderOnboarding() {
-  const question = getCurrentQuestion(onboardingState);
-  const progress = getProgress(onboardingState);
+  const question = questions[currentQuestionIndex];
 
-  qCurrentEl.textContent = progress.current + 1;
-  qTotalEl.textContent = progress.total;
+  qCurrentEl.textContent = currentQuestionIndex + 1;
+  qTotalEl.textContent = questions.length;
 
   if (question) {
     questionTextEl.textContent = question.text;
-
-    // Set hint based on answer type
-    let hint = 'Enter your response';
-    if (question.answerType === 'number') hint = 'Enter a number';
-    if (question.answerType === 'scale') hint = 'Enter a number from 1 to 10';
-    questionHintEl.textContent = `[${hint}]`;
+    questionHintEl.textContent = '[Enter your response]';
   }
 
-  // Update progress bar
-  const percent = progress.total > 0
-    ? (progress.current / progress.total) * 100
+  const percent = questions.length > 0
+    ? (currentQuestionIndex / questions.length) * 100
     : 0;
   onboardingProgressEl.style.width = `${percent}%`;
 }
 
-function handleSubmitAnswer() {
+async function handleSubmitAnswer() {
   const answer = answerInput.value.trim();
   if (!answer) return;
 
-  onboardingState = submitAnswer(onboardingState, answer);
+  const question = questions[currentQuestionIndex];
+  answers.push({ questionId: question.id, answer });
   answerInput.value = '';
+  currentQuestionIndex++;
 
-  if (isComplete(onboardingState)) {
-    // Transition to game with collected answers
-    const answers = getAnswers(onboardingState);
-    console.log('Onboarding complete. Answers:', answers);
-    startGame(answers);
+  if (currentQuestionIndex >= questions.length) {
+    // Submit to API and start game
+    const response = await api.submitAnswers(answers);
+    gameState = {
+      grid: response.grid,
+      bins: { WO: 0, FC: 0, DR: 0, MA: 0 },
+      progress: 0,
+    };
+    showScreen(AppScreen.GAME);
+    renderGame();
+    startAudio();
   } else {
     renderOnboarding();
     answerInput.focus();
@@ -143,14 +130,7 @@ function handleSubmitAnswer() {
 // Game Screen
 // ============================================================================
 
-function startGame(answers) {
-  // TODO: Use answers to seed puzzle generation
-  console.log('Starting game with seed answers:', answers);
-  gameState = createInitialGameState();
-  showScreen(AppScreen.GAME);
-  renderGame();
-
-  // Start the default behavior's leitmotif (if audio available)
+function startAudio() {
   if (typeof AudioContext !== 'undefined') {
     const audioConfig = getBehaviorAudioConfig(DEFAULT_BEHAVIOR);
     const audioContext = new AudioContext();
@@ -170,16 +150,12 @@ function renderGame() {
       const classes = ['cell'];
       if (cell.selected) classes.push('selected');
       if (cell.classified) classes.push('classified');
-      if (cell.size === 2) classes.push('size-medium');
-      if (cell.size === 3) classes.push('size-large');
 
-      // Apply default behavior animation to unclassified cells
       let style = '';
       if (!cell.classified) {
         const behaviorClass = getBehaviorClass(DEFAULT_BEHAVIOR);
         if (behaviorClass) {
           classes.push(behaviorClass);
-          // Random delay so they don't jiggle in unison
           const delay = (Math.random() * 0.8).toFixed(2);
           style = `animation-delay: ${delay}s;`;
         }
@@ -190,14 +166,8 @@ function renderGame() {
   }
   gridEl.innerHTML = html;
 
-  updateProgressDisplay();
+  progressEl.textContent = gameState.progress;
   updateBinDisplays();
-}
-
-function updateProgressDisplay() {
-  const progress = calculateProgress(gameState);
-  gameState.progress = progress;
-  progressEl.textContent = progress;
 }
 
 function updateBinDisplays() {
@@ -212,7 +182,13 @@ function updateBinDisplays() {
 }
 
 function updateHexDisplay(x, y) {
-  const { hexX, hexY } = formatHexCoord(x, y);
+  const HEX_OFFSET_X = 0xfff00000;
+  const HEX_OFFSET_Y = 0xfffa0000;
+  const HEX_MULTIPLIER = 0x1000;
+
+  const hexX = '0x' + (x * HEX_MULTIPLIER + HEX_OFFSET_X).toString(16).toUpperCase();
+  const hexY = '0x' + (y * HEX_MULTIPLIER + HEX_OFFSET_Y).toString(16).toUpperCase();
+
   hexXEl.textContent = hexX;
   hexYEl.textContent = hexY;
 }
@@ -222,6 +198,30 @@ function showMessage(text, type = 'info') {
   setTimeout(() => {
     messageArea.innerHTML = '';
   }, 3000);
+}
+
+function clearGridSelection() {
+  for (const row of gameState.grid) {
+    for (const cell of row) {
+      cell.selected = false;
+    }
+  }
+}
+
+async function handleClassification(bucket) {
+  const response = await api.classify(bucket);
+
+  if (response.success) {
+    showMessage(`${response.classified_count} numbers refined to ${bucket}`, 'success');
+    gameState.bins = response.bins;
+    gameState.progress = response.progress;
+    const state = await api.getState();
+    gameState.grid = state.grid;
+  } else {
+    showMessage('Classification failed - wrong bucket', 'error');
+    clearGridSelection();
+  }
+  renderGame();
 }
 
 // ============================================================================
@@ -258,7 +258,7 @@ gridEl.addEventListener('mouseover', (e) => {
   }
 });
 
-document.addEventListener('click', (e) => {
+document.addEventListener('click', async (e) => {
   if (currentScreen !== AppScreen.GAME) return;
 
   // Cell click - toggle selection
@@ -266,21 +266,20 @@ document.addEventListener('click', (e) => {
     const x = parseInt(e.target.dataset.x);
     const y = parseInt(e.target.dataset.y);
 
-    gameState = toggleCellSelection(gameState, x, y);
+    const response = await api.selectCell(x, y);
+    // Update local state with selected positions
+    for (const row of gameState.grid) {
+      for (const cell of row) {
+        cell.selected = response.selected.some(([sx, sy]) => sx === cell.x && sy === cell.y);
+      }
+    }
     renderGame();
   }
 
   // Bin click - classify selected
   const bin = e.target.closest('.bin');
   if (bin) {
-    const binId = bin.dataset.bin;
-    const result = classifySurroundedToBin(gameState, binId);
-    gameState = result;
-
-    if (result.classifiedCount > 0) {
-      showMessage(`${result.classifiedCount} numbers refined to bin ${binId}`, 'success');
-    }
-    renderGame();
+    await handleClassification(bin.dataset.bin);
   }
 });
 
@@ -288,28 +287,31 @@ document.addEventListener('click', (e) => {
 // Event Handlers - Keyboard
 // ============================================================================
 
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', async (e) => {
   if (currentScreen !== AppScreen.GAME) return;
-
-  // Don't intercept if typing in an input
   if (e.target.tagName === 'INPUT') return;
 
-  // Number keys 1-5 classify to bins
-  if (e.key >= '1' && e.key <= '5') {
-    const binId = '0' + e.key;
-    const result = classifySurroundedToBin(gameState, binId);
-    gameState = result;
+  // W, F, D, M keys classify to bins
+  const keyToBucket = { w: 'WO', f: 'FC', d: 'DR', m: 'MA' };
+  const bucket = keyToBucket[e.key.toLowerCase()];
 
-    if (result.classifiedCount > 0) {
-      showMessage(`${result.classifiedCount} numbers refined to bin ${binId}`, 'success');
-    }
-    renderGame();
+  if (bucket) {
+    await handleClassification(bucket);
   }
 
   // C clears selection
   if (e.key === 'c' || e.key === 'C') {
-    gameState = clearSelection(gameState);
+    await api.clearSelection();
+    clearGridSelection();
     renderGame();
+  }
+
+  // H shows hint
+  if (e.key === 'h' || e.key === 'H') {
+    const hint = await api.getHint();
+    if (hint.region) {
+      showMessage(`Try bucket ${hint.region.bucket}`, 'info');
+    }
   }
 });
 
@@ -318,4 +320,4 @@ document.addEventListener('keydown', (e) => {
 // ============================================================================
 
 showScreen(AppScreen.WELCOME);
-console.log('MDR Terminal initialized');
+console.log('MDR Terminal initialized (API mode)');
