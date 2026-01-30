@@ -64,7 +64,9 @@ class RuleSet:
 class Game:
     """Game state - grid, selection, classification, progress."""
 
-    def __init__(self, rows: int, cols: int, rule_set: RuleSet, seed: int | None = None):
+    def __init__(
+        self, rows: int, cols: int, rule_set: RuleSet, seed: int | None = None
+    ):
         self.rows = rows
         self.cols = cols
         self.rule_set = rule_set
@@ -95,20 +97,13 @@ class Game:
     def progress(self) -> int:
         """Calculate completion percentage."""
         total = self.rows * self.cols
-        classified = sum(
-            1 for row in self._grid for cell in row if cell.classified
-        )
+        classified = sum(1 for row in self._grid for cell in row if cell.classified)
         return round((classified / total) * 100) if total > 0 else 0
 
     @property
     def selected_positions(self) -> list[tuple[int, int]]:
         """Return list of selected positions."""
-        return [
-            (cell.x, cell.y)
-            for row in self._grid
-            for cell in row
-            if cell.selected
-        ]
+        return [(cell.x, cell.y) for row in self._grid for cell in row if cell.selected]
 
     def toggle_selection(self, x: int, y: int) -> None:
         """Toggle selection of a cell."""
@@ -132,7 +127,9 @@ class Game:
         Returns (success, count).
         Success is True only if ALL selected cells belong to that bucket's region.
         """
-        selected = [(cell.x, cell.y) for row in self._grid for cell in row if cell.selected]
+        selected = [
+            (cell.x, cell.y) for row in self._grid for cell in row if cell.selected
+        ]
 
         # Check if all selected cells belong to the target bucket
         for x, y in selected:
@@ -159,7 +156,8 @@ class Game:
         for region in self.rule_set.regions:
             # Find unclassified positions in this region
             unclassified = [
-                pos for pos in region.positions
+                pos
+                for pos in region.positions
                 if not self._grid[pos[1]][pos[0]].classified
             ]
             if unclassified:

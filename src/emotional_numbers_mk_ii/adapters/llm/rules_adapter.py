@@ -1,13 +1,13 @@
-"""MLX LLM adapter for rule generation."""
+"""LLM-based rules adapter using MLX."""
 
 from __future__ import annotations
 
 import json
-import os
 import re
 
 from pydantic import BaseModel, field_validator
 
+from emotional_numbers_mk_ii.adapters.llm.model_loader import get_model
 from emotional_numbers_mk_ii.adapters.llm.prompts import SYSTEM_PROMPT
 from emotional_numbers_mk_ii.domain.game import Region, RegionBehavior, RuleSet
 
@@ -75,47 +75,9 @@ class LLMRuleResponse(BaseModel):
     behaviors: list[LLMBehavior]
 
 
-class LLMQuestion(BaseModel):
-    """A question from LLM output."""
-
-    id: str
-    text: str
-
-
-class LLMQuestionsResponse(BaseModel):
-    """LLM response for question generation."""
-
-    questions: list[LLMQuestion]
-
-
 # ============================================================================
-# MLX Rule Generator
+# Prompt Building
 # ============================================================================
-
-# Singleton model state
-_model = None
-_tokenizer = None
-
-
-def _get_model():
-    """Singleton model loading - expensive, do once."""
-    global _model, _tokenizer
-    if _model is None:
-        from mlx_lm import load
-
-        model_name = os.environ.get(
-            "EMOTIONAL_NUMBERS_MLX_MODEL",
-            "mlx-community/SmolLM2-1.7B-Instruct",
-        )
-        _model, _tokenizer = load(model_name)
-    return _model, _tokenizer
-
-
-def _reset_model():
-    """Reset singleton for testing."""
-    global _model, _tokenizer
-    _model = None
-    _tokenizer = None
 
 
 def _build_user_prompt(answers: list[dict], rows: int, cols: int) -> str:
@@ -168,104 +130,6 @@ Output ONLY valid JSON:
 }}"""
 
 
-class MLXRuleGenerator:
-    """LLM-based rule generator using MLX."""
-
-    def generate_rules(
-        self, answers: list[dict], rows: int, cols: int
-    ) -> RuleSet:
-        """Generate rules using MLX LLM."""
-        from mlx_lm import generate
-
-        model, tokenizer = _get_model()
-
-        # Build chat messages
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": _build_user_prompt(answers, rows, cols)},
-        ]
-
-        # Apply chat template
-        prompt = tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-
-        response = generate(model, tokenizer, prompt=prompt, max_tokens=1500)
-        return parse_llm_response(response, rows, cols)
-
-
-# ============================================================================
-# MLX Question Generator
-# ============================================================================
-
-QUESTION_SYSTEM_PROMPT = """You are a Lumon Industries HR representative conducting employee orientation.
-
-Your questions should be:
-1. SEEMINGLY MUNDANE but subtly unsettling
-2. PERSONAL but in unexpected ways - sensory memories, emotional associations
-3. BUREAUCRATICALLY precise in phrasing
-4. Designed to "calibrate" the employee's experience
-
-The questions probe the worker's inner life while maintaining corporate detachment.
-Never explain why you're asking. Lumon cares about your wellbeing."""
-
-
-def _build_question_prompt() -> str:
-    """Build prompt for generating onboarding questions."""
-    return """Generate 5 onboarding questions for a new Macro Data Refinement employee.
-
-Requirements:
-- Each question should feel corporate yet strangely intimate
-- Mix sensory questions (smells, textures, sounds) with emotional ones
-- Include one numerical self-assessment (compliance, contentment, etc.)
-- Questions should be 1-2 sentences max
-
-Output ONLY valid JSON:
-{
-  "questions": [
-    {"id": "q1", "text": "What was the predominant smell of your childhood kitchen?"},
-    {"id": "q2", "text": "Describe the texture of your most treasured possession."},
-    {"id": "q3", "text": "What sound do you associate with disappointment?"},
-    {"id": "q4", "text": "What color best represents your relationship with authority?"},
-    {"id": "q5", "text": "On a scale of 1-10, rate your current sense of purpose."}
-  ]
-}"""
-
-
-class MLXQuestionGenerator:
-    """LLM-based question generator using MLX."""
-
-    def generate_questions(self) -> list[dict]:
-        """Generate onboarding questions using MLX LLM."""
-        from mlx_lm import generate
-
-        model, tokenizer = _get_model()
-
-        messages = [
-            {"role": "system", "content": QUESTION_SYSTEM_PROMPT},
-            {"role": "user", "content": _build_question_prompt()},
-        ]
-
-        prompt = tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-
-        response = generate(model, tokenizer, prompt=prompt, max_tokens=500)
-        return parse_questions_response(response)
-
-
-def parse_questions_response(raw: str) -> list[dict]:
-    """Parse LLM JSON response into question list."""
-    json_match = re.search(r"\{[\s\S]*\}", raw)
-    if not json_match:
-        raise RuleValidationError("No JSON found in question response")
-
-    data = json.loads(json_match.group())
-    response = LLMQuestionsResponse.model_validate(data)
-
-    return [{"id": q.id, "text": q.text} for q in response.questions]
-
-
 # ============================================================================
 # Response Parsing and Validation
 # ============================================================================
@@ -273,22 +137,6 @@ def parse_questions_response(raw: str) -> list[dict]:
 
 class RuleValidationError(Exception):
     """Error during rule validation."""
-
-
-def parse_llm_response(raw: str, rows: int, cols: int) -> RuleSet:
-    """Parse LLM JSON response into RuleSet."""
-    # Extract JSON from response (may have preamble)
-    json_match = re.search(r"\{[\s\S]*\}", raw)
-    if not json_match:
-        raise RuleValidationError("No JSON found in response")
-
-    data = json.loads(json_match.group())
-    response = LLMRuleResponse.model_validate(data)
-
-    # Validate regions
-    validate_regions(response.regions, rows, cols)
-
-    return convert_to_ruleset(response)
 
 
 def validate_regions(regions: list[LLMRegion], rows: int, cols: int) -> None:
@@ -310,9 +158,7 @@ def validate_regions(regions: list[LLMRegion], rows: int, cols: int) -> None:
         for x, y in region.positions:
             # Check bounds
             if not (0 <= x < cols and 0 <= y < rows):
-                raise RuleValidationError(
-                    f"Position ({x}, {y}) out of bounds"
-                )
+                raise RuleValidationError(f"Position ({x}, {y}) out of bounds")
 
             # Check overlap
             if (x, y) in used_positions:
@@ -326,8 +172,7 @@ def validate_regions(regions: list[LLMRegion], rows: int, cols: int) -> None:
 def convert_to_ruleset(response: LLMRuleResponse) -> RuleSet:
     """Convert LLM response to domain RuleSet."""
     regions = [
-        Region(bucket=r.bucket, positions=list(r.positions))
-        for r in response.regions
+        Region(bucket=r.bucket, positions=list(r.positions)) for r in response.regions
     ]
 
     behaviors = [
@@ -341,3 +186,60 @@ def convert_to_ruleset(response: LLMRuleResponse) -> RuleSet:
     ]
 
     return RuleSet(regions=regions, behaviors=behaviors)
+
+
+def parse_llm_response(raw: str, rows: int, cols: int) -> RuleSet:
+    """Parse LLM JSON response into RuleSet."""
+    # Extract JSON from response (may have preamble)
+    json_match = re.search(r"\{[\s\S]*\}", raw)
+    if not json_match:
+        raise RuleValidationError("No JSON found in response")
+
+    data = json.loads(json_match.group())
+    response = LLMRuleResponse.model_validate(data)
+
+    # Validate regions
+    validate_regions(response.regions, rows, cols)
+
+    return convert_to_ruleset(response)
+
+
+# ============================================================================
+# LLM Rules Adapter
+# ============================================================================
+
+
+class LLMRulesAdapter:
+    """LLM-based rule generator using MLX.
+
+    Implements RulesRepository protocol.
+    """
+
+    def generate_rules(self, answers: list[dict], rows: int, cols: int) -> RuleSet:
+        """Generate rules using MLX LLM.
+
+        Args:
+            answers: List of answer dicts with 'questionId' and 'answer' keys.
+            rows: Grid height.
+            cols: Grid width.
+
+        Returns:
+            RuleSet with regions and behaviors.
+        """
+        from mlx_lm import generate
+
+        model, tokenizer = get_model()
+
+        # Build chat messages
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": _build_user_prompt(answers, rows, cols)},
+        ]
+
+        # Apply chat template
+        prompt = tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+
+        response = generate(model, tokenizer, prompt=prompt, max_tokens=1500)
+        return parse_llm_response(response, rows, cols)

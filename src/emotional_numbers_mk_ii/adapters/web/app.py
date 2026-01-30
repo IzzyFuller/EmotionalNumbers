@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from emotional_numbers_mk_ii.adapters.llm import LLMQuestionsAdapter, LLMRulesAdapter
 from emotional_numbers_mk_ii.adapters.web.api import (
     GameSession,
     router,
@@ -20,8 +21,13 @@ app = FastAPI(title="LUMON MDR Terminal")
 # Wire up API routes
 app.include_router(router)
 
-# Initialize session
-set_session(GameSession())
+# Initialize session with default (LLM) adapters
+set_session(
+    GameSession(
+        questions_adapter=LLMQuestionsAdapter(),
+        rules_adapter=LLMRulesAdapter(),
+    )
+)
 
 # Static files
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")

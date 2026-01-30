@@ -1,17 +1,17 @@
-"""Tests for MLX LLM adapter."""
+"""Tests for LLM adapters (rules and questions)."""
 
 import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from emotional_numbers_mk_ii.adapters.llm.mlx_adapter import (
+from emotional_numbers_mk_ii.adapters.llm.model_loader import reset_model
+from emotional_numbers_mk_ii.adapters.llm.rules_adapter import (
     LLMBehavior,
     LLMRegion,
     LLMRuleResponse,
-    MLXRuleGenerator,
+    LLMRulesAdapter,
     RuleValidationError,
-    _reset_model,
     convert_to_ruleset,
     parse_llm_response,
     validate_regions,
@@ -39,29 +39,59 @@ def sample_answers() -> list[dict]:
 @pytest.fixture
 def valid_llm_response() -> str:
     """Valid JSON response from LLM."""
-    return json.dumps({
-        "hidden_rules": {
-            "01": "Numbers that feel cold",
-            "02": "Numbers that feel warm",
-            "03": "Numbers that feel sharp",
-            "04": "Numbers that feel soft",
-            "05": "Numbers that feel heavy",
-        },
-        "regions": [
-            {"bucket": "01", "positions": [[5, 10], [6, 10], [5, 11], [6, 11]]},
-            {"bucket": "02", "positions": [[20, 3], [21, 3], [22, 3], [20, 4], [21, 4]]},
-            {"bucket": "03", "positions": [[10, 15], [11, 15], [12, 15], [13, 15]]},
-            {"bucket": "04", "positions": [[30, 20], [31, 20], [30, 21], [31, 21]]},
-            {"bucket": "05", "positions": [[2, 2], [3, 2], [2, 3], [3, 3]]},
-        ],
-        "behaviors": [
-            {"bucket": "01", "jiggle_intensity": 0.3, "jiggle_frequency": 1.2, "sound_id": "tone_01"},
-            {"bucket": "02", "jiggle_intensity": 0.7, "jiggle_frequency": 0.8, "sound_id": "tone_02"},
-            {"bucket": "03", "jiggle_intensity": 0.5, "jiggle_frequency": 1.5, "sound_id": "tone_03"},
-            {"bucket": "04", "jiggle_intensity": 0.2, "jiggle_frequency": 1.0, "sound_id": "tone_04"},
-            {"bucket": "05", "jiggle_intensity": 0.9, "jiggle_frequency": 0.6, "sound_id": "tone_05"},
-        ],
-    })
+    return json.dumps(
+        {
+            "hidden_rules": {
+                "01": "Numbers that feel cold",
+                "02": "Numbers that feel warm",
+                "03": "Numbers that feel sharp",
+                "04": "Numbers that feel soft",
+                "05": "Numbers that feel heavy",
+            },
+            "regions": [
+                {"bucket": "01", "positions": [[5, 10], [6, 10], [5, 11], [6, 11]]},
+                {
+                    "bucket": "02",
+                    "positions": [[20, 3], [21, 3], [22, 3], [20, 4], [21, 4]],
+                },
+                {"bucket": "03", "positions": [[10, 15], [11, 15], [12, 15], [13, 15]]},
+                {"bucket": "04", "positions": [[30, 20], [31, 20], [30, 21], [31, 21]]},
+                {"bucket": "05", "positions": [[2, 2], [3, 2], [2, 3], [3, 3]]},
+            ],
+            "behaviors": [
+                {
+                    "bucket": "01",
+                    "jiggle_intensity": 0.3,
+                    "jiggle_frequency": 1.2,
+                    "sound_id": "tone_01",
+                },
+                {
+                    "bucket": "02",
+                    "jiggle_intensity": 0.7,
+                    "jiggle_frequency": 0.8,
+                    "sound_id": "tone_02",
+                },
+                {
+                    "bucket": "03",
+                    "jiggle_intensity": 0.5,
+                    "jiggle_frequency": 1.5,
+                    "sound_id": "tone_03",
+                },
+                {
+                    "bucket": "04",
+                    "jiggle_intensity": 0.2,
+                    "jiggle_frequency": 1.0,
+                    "sound_id": "tone_04",
+                },
+                {
+                    "bucket": "05",
+                    "jiggle_intensity": 0.9,
+                    "jiggle_frequency": 0.6,
+                    "sound_id": "tone_05",
+                },
+            ],
+        }
+    )
 
 
 # ============================================================================
@@ -148,7 +178,9 @@ class TestValidateRegions:
         """Should reject overlapping regions."""
         regions = [
             LLMRegion(bucket="01", positions=[(0, 0), (1, 0), (0, 1), (1, 1)]),
-            LLMRegion(bucket="02", positions=[(1, 1), (2, 1), (1, 2), (2, 2)]),  # Overlaps at (1, 1)
+            LLMRegion(
+                bucket="02", positions=[(1, 1), (2, 1), (1, 2), (2, 2)]
+            ),  # Overlaps at (1, 1)
         ]
         with pytest.raises(RuleValidationError, match="overlaps"):
             validate_regions(regions, rows=25, cols=40)
@@ -197,8 +229,17 @@ class TestConvertToRuleset:
         """Should convert LLM regions to domain regions."""
         response = LLMRuleResponse(
             hidden_rules={"01": "test"},
-            regions=[LLMRegion(bucket="01", positions=[(0, 0), (1, 0), (0, 1), (1, 1)])],
-            behaviors=[LLMBehavior(bucket="01", jiggle_intensity=0.5, jiggle_frequency=1.0, sound_id="tone_01")],
+            regions=[
+                LLMRegion(bucket="01", positions=[(0, 0), (1, 0), (0, 1), (1, 1)])
+            ],
+            behaviors=[
+                LLMBehavior(
+                    bucket="01",
+                    jiggle_intensity=0.5,
+                    jiggle_frequency=1.0,
+                    sound_id="tone_01",
+                )
+            ],
         )
         rule_set = convert_to_ruleset(response)
 
@@ -210,8 +251,17 @@ class TestConvertToRuleset:
         """Should convert LLM behaviors to domain behaviors."""
         response = LLMRuleResponse(
             hidden_rules={"01": "test"},
-            regions=[LLMRegion(bucket="01", positions=[(0, 0), (1, 0), (0, 1), (1, 1)])],
-            behaviors=[LLMBehavior(bucket="01", jiggle_intensity=0.5, jiggle_frequency=1.0, sound_id="tone_01")],
+            regions=[
+                LLMRegion(bucket="01", positions=[(0, 0), (1, 0), (0, 1), (1, 1)])
+            ],
+            behaviors=[
+                LLMBehavior(
+                    bucket="01",
+                    jiggle_intensity=0.5,
+                    jiggle_frequency=1.0,
+                    sound_id="tone_01",
+                )
+            ],
         )
         rule_set = convert_to_ruleset(response)
 
@@ -222,16 +272,16 @@ class TestConvertToRuleset:
 
 
 # ============================================================================
-# MLXRuleGenerator Tests
+# LLMRulesAdapter Tests
 # ============================================================================
 
 
-class TestMLXRuleGenerator:
-    """Test MLX-based rule generator."""
+class TestLLMRulesAdapter:
+    """Test LLM-based rules adapter."""
 
     def test_generates_with_mocked_mlx(self, sample_answers, valid_llm_response):
         """Should generate rules with mocked MLX."""
-        _reset_model()  # Clear singleton
+        reset_model()  # Clear singleton
 
         mock_model = MagicMock()
         mock_tokenizer = MagicMock()
@@ -243,10 +293,10 @@ class TestMLXRuleGenerator:
         mock_mlx_lm.generate.return_value = valid_llm_response
 
         with patch.dict("sys.modules", {"mlx_lm": mock_mlx_lm}):
-            generator = MLXRuleGenerator()
-            rule_set = generator.generate_rules(sample_answers, rows=25, cols=40)
+            adapter = LLMRulesAdapter()
+            rule_set = adapter.generate_rules(sample_answers, rows=25, cols=40)
 
         assert isinstance(rule_set, RuleSet)
         assert len(rule_set.regions) == 5
 
-        _reset_model()  # Clean up
+        reset_model()  # Clean up

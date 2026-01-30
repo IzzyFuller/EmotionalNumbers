@@ -1,5 +1,7 @@
 """API routes for the game."""
 
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends
 
 from emotional_numbers_mk_ii.adapters.web.api.models import (
@@ -18,11 +20,8 @@ from emotional_numbers_mk_ii.adapters.web.api.models import (
     StartResponse,
     StateResponse,
 )
-from emotional_numbers_mk_ii.adapters.llm.mlx_adapter import (
-    MLXQuestionGenerator,
-    MLXRuleGenerator,
-)
 from emotional_numbers_mk_ii.domain.game import Game, answers_to_seed
+from emotional_numbers_mk_ii.ports import QuestionsRepository, RulesRepository
 
 router = APIRouter(prefix="/api")
 
@@ -33,30 +32,39 @@ router = APIRouter(prefix="/api")
 
 
 class GameSession:
-    """Manages game session state."""
+    """Manages game session state.
+
+    Accepts adapters via constructor for dependency injection.
+    """
 
     def __init__(
         self,
-        question_generator: MLXQuestionGenerator | None = None,
-        rule_generator: MLXRuleGenerator | None = None,
+        questions_adapter: QuestionsRepository,
+        rules_adapter: RulesRepository,
     ):
+        """Initialize session with adapters.
+
+        Args:
+            questions_adapter: Adapter implementing QuestionsRepository protocol.
+            rules_adapter: Adapter implementing RulesRepository protocol.
+        """
+        self._questions_adapter = questions_adapter
+        self._rules_adapter = rules_adapter
         self.phase = "welcome"
         self.questions: list[dict] = []
         self.game: Game | None = None
-        self._question_generator = question_generator or MLXQuestionGenerator()
-        self._rule_generator = rule_generator or MLXRuleGenerator()
 
     def start(self) -> list[dict]:
-        """Start a new session, generate questions via LLM."""
+        """Start a new session, generate questions via adapter."""
         self.phase = "onboarding"
-        self.questions = self._question_generator.generate_questions()
+        self.questions = self._questions_adapter.get_questions()
         self.game = None
         return self.questions
 
     def submit_answers(self, answers: list[dict]) -> Game:
-        """Submit answers, create game."""
+        """Submit answers, create game via adapter."""
         seed = answers_to_seed(answers)
-        rule_set = self._rule_generator.generate_rules(answers, rows=25, cols=40)
+        rule_set = self._rules_adapter.generate_rules(answers, rows=25, cols=40)
         self.game = Game(rows=25, cols=40, rule_set=rule_set, seed=seed)
         self.phase = "playing"
         return self.game
@@ -124,8 +132,7 @@ async def submit_answers(
     return AnswersResponse(
         phase=session.phase,
         grid=[
-            [_cell_to_model(cell, game.rule_set) for cell in row]
-            for row in game.grid
+            [_cell_to_model(cell, game.rule_set) for cell in row] for row in game.grid
         ],
     )
 
@@ -194,5 +201,7 @@ async def get_hint(session: GameSession = Depends(get_session)) -> HintResponse:
         region=RegionHint(
             bucket=hint["bucket"],
             positions=[list(pos) for pos in hint["positions"]],
-        ) if hint else None,
+        )
+        if hint
+        else None,
     )
