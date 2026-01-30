@@ -44,6 +44,10 @@ class CellModel(BaseModel):
     value: int
     selected: bool
     classified: bool
+    in_region: bool = False
+    jiggle_intensity: float = 0.0
+    jiggle_frequency: float = 1.0
+    sound_id: str = "tone_00"
 
 
 class BehaviorModel(BaseModel):

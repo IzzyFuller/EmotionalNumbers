@@ -6,7 +6,6 @@
  */
 
 import * as api from './api.js';
-import { DEFAULT_BEHAVIOR, getBehaviorClass, getBehaviorAudioConfig } from './behaviors.js';
 import { createAudioEngine, createLeitmotif } from './audio.js';
 
 // ============================================================================
@@ -70,10 +69,19 @@ function showScreen(screen) {
 // ============================================================================
 
 async function handleBeginOrientation() {
+  // Show loading state
+  beginBtn.disabled = true;
+  beginBtn.textContent = 'INITIALIZING...';
+
   const response = await api.startGame();
   questions = response.questions;
   answers = [];
   currentQuestionIndex = 0;
+
+  // Restore button for next time
+  beginBtn.disabled = false;
+  beginBtn.textContent = 'BEGIN ORIENTATION';
+
   showScreen(AppScreen.ONBOARDING);
   renderOnboarding();
   answerInput.focus();
@@ -110,6 +118,13 @@ async function handleSubmitAnswer() {
   currentQuestionIndex++;
 
   if (currentQuestionIndex >= questions.length) {
+    // Show loading state while LLM generates rules
+    questionTextEl.textContent = 'CALIBRATING EXPERIENCE...';
+    questionHintEl.textContent = '[Please wait while your data file is prepared]';
+    submitBtn.disabled = true;
+    answerInput.disabled = true;
+    onboardingProgressEl.style.width = '100%';
+
     // Submit to API and start game
     const response = await api.submitAnswers(answers);
     gameState = {
@@ -117,9 +132,12 @@ async function handleSubmitAnswer() {
       bins: { '01': 0, '02': 0, '03': 0, '04': 0, '05': 0 },
       progress: 0,
     };
+
+    // Start audio first, then show grid after brief delay
+    startAudio();
+    await new Promise(resolve => setTimeout(resolve, 400));
     showScreen(AppScreen.GAME);
     renderGame();
-    startAudio();
   } else {
     renderOnboarding();
     answerInput.focus();
@@ -132,7 +150,12 @@ async function handleSubmitAnswer() {
 
 function startAudio() {
   if (typeof AudioContext !== 'undefined') {
-    const audioConfig = getBehaviorAudioConfig(DEFAULT_BEHAVIOR);
+    const audioConfig = {
+      type: 'leitmotif',
+      name: 'neutral',
+      baseFrequency: 220,
+      pattern: 'ambient',
+    };
     const audioContext = new AudioContext();
     audioEngine = createAudioEngine(audioContext);
     const leitmotif = createLeitmotif(audioConfig);
@@ -153,12 +176,12 @@ function renderGame() {
 
       let style = '';
       if (!cell.classified) {
-        const behaviorClass = getBehaviorClass(DEFAULT_BEHAVIOR);
-        if (behaviorClass) {
-          classes.push(behaviorClass);
-          const delay = (Math.random() * 0.8).toFixed(2);
-          style = `animation-delay: ${delay}s;`;
-        }
+        classes.push('jiggle');
+        const delay = (Math.random() * 0.8).toFixed(2);
+        // Region cells use their LLM-assigned behavior, non-region use defaults from API
+        const scale = 1 + (cell.jiggle_intensity * 0.5); // 1.0 to 1.5
+        const duration = (2.4 / cell.jiggle_frequency).toFixed(2); // Higher freq = faster
+        style = `animation-delay: ${delay}s; --jiggle-scale: ${scale}; --jiggle-duration: ${duration}s;`;
       }
 
       html += `<div class="${classes.join(' ')}" style="${style}" data-x="${cell.x}" data-y="${cell.y}">${cell.value}</div>`;

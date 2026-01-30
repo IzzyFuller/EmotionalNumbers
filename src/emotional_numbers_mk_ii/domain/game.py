@@ -50,6 +50,16 @@ class RuleSet:
                 return region.bucket
         return None
 
+    def get_behavior_for_position(self, x: int, y: int) -> RegionBehavior | None:
+        """Return the behavior for a position, or None if not in any region."""
+        bucket = self.get_bucket_for_position(x, y)
+        if bucket is None:
+            return None
+        for behavior in self.behaviors:
+            if behavior.bucket == bucket:
+                return behavior
+        return None
+
 
 class Game:
     """Game state - grid, selection, classification, progress."""

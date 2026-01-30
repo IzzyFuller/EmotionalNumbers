@@ -18,11 +18,11 @@ from emotional_numbers_mk_ii.adapters.web.api.models import (
     StartResponse,
     StateResponse,
 )
-from emotional_numbers_mk_ii.domain.game import (
-    Game,
-    answers_to_seed,
-    generate_rule_set,
+from emotional_numbers_mk_ii.adapters.llm.mlx_adapter import (
+    MLXQuestionGenerator,
+    MLXRuleGenerator,
 )
+from emotional_numbers_mk_ii.domain.game import Game, answers_to_seed
 
 router = APIRouter(prefix="/api")
 
@@ -35,30 +35,24 @@ router = APIRouter(prefix="/api")
 class GameSession:
     """Manages game session state."""
 
-    QUESTIONS = [
-        {"id": "q1", "text": "What was the predominant smell of your childhood kitchen?"},
-        {"id": "q2", "text": "Describe the feeling of your most comfortable chair."},
-        {"id": "q3", "text": "What sound do you associate with safety?"},
-        {"id": "q4", "text": "What color is the silence between your thoughts?"},
-        {"id": "q5", "text": "On a scale of 1-10, how would you rate your current compliance?"},
-    ]
-
     def __init__(self):
         self.phase = "welcome"
         self.questions: list[dict] = []
         self.game: Game | None = None
 
     def start(self) -> list[dict]:
-        """Start a new session, return questions."""
+        """Start a new session, generate questions via LLM."""
         self.phase = "onboarding"
-        self.questions = self.QUESTIONS.copy()
+        generator = MLXQuestionGenerator()
+        self.questions = generator.generate_questions()
         self.game = None
         return self.questions
 
     def submit_answers(self, answers: list[dict]) -> Game:
         """Submit answers, create game."""
         seed = answers_to_seed(answers)
-        rule_set = generate_rule_set(seed)
+        generator = MLXRuleGenerator()
+        rule_set = generator.generate_rules(answers, rows=25, cols=40)
         self.game = Game(rows=25, cols=40, rule_set=rule_set, seed=seed)
         self.phase = "playing"
         return self.game
@@ -77,6 +71,28 @@ def set_session(session: GameSession) -> None:
     """Set the module session (called by app.py)."""
     global _session
     _session = session
+
+
+# ============================================================================
+# Helpers
+# ============================================================================
+
+
+def _cell_to_model(cell, rule_set) -> CellModel:
+    """Convert domain Cell to CellModel with behavior info."""
+    behavior = rule_set.get_behavior_for_position(cell.x, cell.y)
+    in_region = behavior is not None
+    return CellModel(
+        x=cell.x,
+        y=cell.y,
+        value=cell.value,
+        selected=cell.selected,
+        classified=cell.classified,
+        in_region=in_region,
+        jiggle_intensity=behavior.jiggle_intensity if in_region else 0.15,
+        jiggle_frequency=behavior.jiggle_frequency if in_region else 0.8,
+        sound_id=behavior.sound_id if in_region else "tone_00",
+    )
 
 
 # ============================================================================
@@ -104,7 +120,7 @@ async def submit_answers(
     return AnswersResponse(
         phase=session.phase,
         grid=[
-            [CellModel.model_validate(cell) for cell in row]
+            [_cell_to_model(cell, game.rule_set) for cell in row]
             for row in game.grid
         ],
     )
@@ -115,7 +131,7 @@ async def get_state(session: GameSession = Depends(get_session)) -> StateRespons
     """Get current game state."""
     return StateResponse(
         grid=[
-            [CellModel.model_validate(cell) for cell in row]
+            [_cell_to_model(cell, session.game.rule_set) for cell in row]
             for row in session.game.grid
         ],
         bins=session.game.bins,

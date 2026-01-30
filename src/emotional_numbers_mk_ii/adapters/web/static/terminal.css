@@ -286,18 +286,20 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Jiggle animations for "emotional" numbers */
+/* Jiggle animations for "emotional" numbers - intensity/frequency from LLM */
 .cell.jiggle {
-    animation: jiggle 0.8s ease-in-out infinite;
-    /* animation-delay set inline for desync */
+    --jiggle-scale: 1.2;
+    --jiggle-duration: 1.8s;
+    animation: jiggle var(--jiggle-duration) ease-in-out infinite;
+    /* --jiggle-scale, --jiggle-duration, animation-delay set inline per cell */
 }
 
 @keyframes jiggle {
     0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    20% { transform: translate(-4px, 2px) rotate(-2deg); }
-    40% { transform: translate(3px, -3px) rotate(2deg); }
-    60% { transform: translate(-2px, -4px) rotate(-1deg); }
-    80% { transform: translate(4px, 1px) rotate(1deg); }
+    20% { transform: translate(-3px, 2px) rotate(-1.5deg); }
+    40% { transform: translate(2px, -2px) rotate(1.5deg); }
+    60% { transform: translate(-2px, 3px) rotate(-1deg); }
+    80% { transform: translate(3px, 1px) rotate(1deg); }
 }
 
 /* Selected cells don't jiggle */
