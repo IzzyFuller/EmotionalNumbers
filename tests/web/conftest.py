@@ -1,81 +1,56 @@
 """Fixtures for web API tests."""
 
-import json
-from unittest.mock import MagicMock, patch
-
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from emotional_numbers_mk_ii.adapters.web.api import HintResponse, StartResponse
-from emotional_numbers_mk_ii.adapters.web.app import app
-from emotional_numbers_mk_ii.adapters.llm.mlx_adapter import _reset_model
+from emotional_numbers_mk_ii.adapters.web.api import (
+    GameSession,
+    HintResponse,
+    StartResponse,
+    router,
+    set_session,
+)
+import sys
+from pathlib import Path
 
+# Add tests to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-MOCK_QUESTIONS_RESPONSE = json.dumps({
-    "questions": [
-        {"id": "q1", "text": "What smell reminds you of safety?"},
-        {"id": "q2", "text": "Describe the texture of comfort."},
-        {"id": "q3", "text": "What color is your anxiety?"},
-        {"id": "q4", "text": "Rate your compliance from 1-10."},
-        {"id": "q5", "text": "What sound do you associate with work?"},
-    ]
-})
-
-MOCK_RULES_RESPONSE = json.dumps({
-    "hidden_rules": {
-        "01": "Numbers that feel cold",
-        "02": "Numbers that feel warm",
-        "03": "Numbers that feel sharp",
-        "04": "Numbers that feel soft",
-        "05": "Numbers that feel heavy",
-    },
-    "regions": [
-        {"bucket": "01", "positions": [[5, 10], [6, 10], [5, 11], [6, 11]]},
-        {"bucket": "02", "positions": [[20, 3], [21, 3], [22, 3], [20, 4], [21, 4]]},
-        {"bucket": "03", "positions": [[10, 15], [11, 15], [12, 15], [13, 15]]},
-        {"bucket": "04", "positions": [[30, 20], [31, 20], [30, 21], [31, 21]]},
-        {"bucket": "05", "positions": [[2, 2], [3, 2], [2, 3], [3, 3]]},
-    ],
-    "behaviors": [
-        {"bucket": "01", "jiggle_intensity": 0.3, "jiggle_frequency": 1.2, "sound_id": "tone_01"},
-        {"bucket": "02", "jiggle_intensity": 0.7, "jiggle_frequency": 1.1, "sound_id": "tone_02"},
-        {"bucket": "03", "jiggle_intensity": 0.5, "jiggle_frequency": 1.5, "sound_id": "tone_03"},
-        {"bucket": "04", "jiggle_intensity": 0.25, "jiggle_frequency": 1.0, "sound_id": "tone_04"},
-        {"bucket": "05", "jiggle_intensity": 0.9, "jiggle_frequency": 0.6, "sound_id": "tone_05"},
-    ],
-})
-
-
-@pytest.fixture(autouse=True)
-def mock_mlx():
-    """Mock MLX model loading and generation for all web tests."""
-    _reset_model()
-
-    mock_model = MagicMock()
-    mock_tokenizer = MagicMock()
-    # Pass through message content so mock_generate can distinguish
-    mock_tokenizer.apply_chat_template.side_effect = lambda msgs, **kw: msgs[1]["content"]
-
-    def mock_generate(model, tokenizer, prompt, max_tokens):
-        # Return questions or rules based on prompt content
-        if "onboarding questions" in prompt.lower():
-            return MOCK_QUESTIONS_RESPONSE
-        return MOCK_RULES_RESPONSE
-
-    mock_mlx_lm = MagicMock()
-    mock_mlx_lm.load.return_value = (mock_model, mock_tokenizer)
-    mock_mlx_lm.generate.side_effect = mock_generate
-
-    with patch.dict("sys.modules", {"mlx_lm": mock_mlx_lm}):
-        yield
-
-    _reset_model()
+from adapters.mock_mlx_adapter import MLXQuestionGenerator, MLXRuleGenerator
 
 
 @pytest.fixture
-def client():
-    """Create test client for the FastAPI app."""
-    return TestClient(app)
+def test_app():
+    """Create test app with mock generators injected."""
+    from pathlib import Path
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+
+    app = FastAPI(title="LUMON MDR Terminal (Test)")
+    app.include_router(router)
+
+    # Inject mock generators
+    session = GameSession(
+        question_generator=MLXQuestionGenerator(),
+        rule_generator=MLXRuleGenerator(),
+    )
+    set_session(session)
+
+    base_dir = Path(__file__).parent.parent.parent / "src" / "emotional_numbers_mk_ii" / "adapters" / "web"
+    app.mount("/static", StaticFiles(directory=base_dir / "static"), name="static")
+
+    @app.get("/")
+    async def index() -> FileResponse:
+        return FileResponse(base_dir / "templates" / "index.html")
+
+    return app
+
+
+@pytest.fixture
+def client(test_app):
+    """Create test client with mock generators."""
+    return TestClient(test_app)
 
 
 @pytest.fixture

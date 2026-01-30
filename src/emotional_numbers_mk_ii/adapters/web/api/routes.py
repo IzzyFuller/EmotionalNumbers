@@ -35,24 +35,28 @@ router = APIRouter(prefix="/api")
 class GameSession:
     """Manages game session state."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        question_generator: MLXQuestionGenerator | None = None,
+        rule_generator: MLXRuleGenerator | None = None,
+    ):
         self.phase = "welcome"
         self.questions: list[dict] = []
         self.game: Game | None = None
+        self._question_generator = question_generator or MLXQuestionGenerator()
+        self._rule_generator = rule_generator or MLXRuleGenerator()
 
     def start(self) -> list[dict]:
         """Start a new session, generate questions via LLM."""
         self.phase = "onboarding"
-        generator = MLXQuestionGenerator()
-        self.questions = generator.generate_questions()
+        self.questions = self._question_generator.generate_questions()
         self.game = None
         return self.questions
 
     def submit_answers(self, answers: list[dict]) -> Game:
         """Submit answers, create game."""
         seed = answers_to_seed(answers)
-        generator = MLXRuleGenerator()
-        rule_set = generator.generate_rules(answers, rows=25, cols=40)
+        rule_set = self._rule_generator.generate_rules(answers, rows=25, cols=40)
         self.game = Game(rows=25, cols=40, rule_set=rule_set, seed=seed)
         self.phase = "playing"
         return self.game
