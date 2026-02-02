@@ -122,34 +122,110 @@ class Game:
 
     def classify(self, bucket: str) -> tuple[bool, int]:
         """
-        Classify selected cells to a bucket.
+        Classify cells enclosed by selected boundary to a bucket.
 
         Returns (success, count).
-        Success is True only if ALL selected cells belong to that bucket's region.
+        Selected cells form a boundary. Interior cells (enclosed by boundary)
+        are classified if they ALL belong to the target bucket's region.
         """
-        selected = [
+        boundary = {
             (cell.x, cell.y) for row in self._grid for cell in row if cell.selected
-        ]
+        }
 
-        # Check if all selected cells belong to the target bucket
-        for x, y in selected:
+        if not boundary:
+            return False, 0
+
+        # Find interior cells using flood-fill from edges
+        interior = self._find_interior_cells(boundary)
+
+        if not interior:
+            # No interior cells found - boundary doesn't enclose anything
+            self.clear_selection()
+            return False, 0
+
+        # Check if all interior cells belong to the target bucket
+        for x, y in interior:
             cell_bucket = self.rule_set.get_bucket_for_position(x, y)
             if cell_bucket != bucket:
                 # Wrong bucket - clear selection and fail
                 self.clear_selection()
                 return False, 0
 
-        # Success - classify the cells
+        # Success - classify the interior cells
         count = 0
-        for row in self._grid:
-            for cell in row:
-                if cell.selected and not cell.classified:
-                    cell.classified = True
-                    cell.selected = False
-                    count += 1
+        for x, y in interior:
+            cell = self._grid[y][x]
+            if not cell.classified:
+                cell.classified = True
+                count += 1
 
+        # Clear the boundary selection
+        self.clear_selection()
         self._bins[bucket] += count
         return True, count
+
+    def _find_interior_cells(
+        self, boundary: set[tuple[int, int]]
+    ) -> set[tuple[int, int]]:
+        """Find cells enclosed by boundary using flood-fill from edges.
+
+        Args:
+            boundary: Set of (x, y) positions forming the boundary.
+
+        Returns:
+            Set of (x, y) positions that are enclosed by the boundary.
+        """
+        if not boundary:
+            return set()
+
+        # Find bounding box of boundary
+        min_x = min(x for x, y in boundary)
+        max_x = max(x for x, y in boundary)
+        min_y = min(y for x, y in boundary)
+        max_y = max(y for x, y in boundary)
+
+        # Expand bounding box by 1 to ensure we can flood from outside
+        min_x = max(0, min_x - 1)
+        max_x = min(self.cols - 1, max_x + 1)
+        min_y = max(0, min_y - 1)
+        max_y = min(self.rows - 1, max_y + 1)
+
+        # Flood-fill from all edge cells to find exterior
+        exterior: set[tuple[int, int]] = set()
+        to_visit: list[tuple[int, int]] = []
+
+        # Start from all cells on the bounding box edges
+        for x in range(min_x, max_x + 1):
+            if (x, min_y) not in boundary:
+                to_visit.append((x, min_y))
+            if (x, max_y) not in boundary:
+                to_visit.append((x, max_y))
+        for y in range(min_y, max_y + 1):
+            if (min_x, y) not in boundary:
+                to_visit.append((min_x, y))
+            if (max_x, y) not in boundary:
+                to_visit.append((max_x, y))
+
+        # Flood-fill to find all exterior cells
+        while to_visit:
+            x, y = to_visit.pop()
+            if (x, y) in exterior or (x, y) in boundary:
+                continue
+            if not (min_x <= x <= max_x and min_y <= y <= max_y):
+                continue
+            exterior.add((x, y))
+            # Add neighbors
+            for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                to_visit.append((x + dx, y + dy))
+
+        # Interior = cells in bounding box that are not boundary and not exterior
+        interior: set[tuple[int, int]] = set()
+        for y in range(min_y, max_y + 1):
+            for x in range(min_x, max_x + 1):
+                if (x, y) not in boundary and (x, y) not in exterior:
+                    interior.add((x, y))
+
+        return interior
 
     def get_hint(self) -> dict | None:
         """Return a hint about an unclassified region."""

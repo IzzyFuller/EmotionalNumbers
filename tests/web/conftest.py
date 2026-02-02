@@ -217,10 +217,43 @@ def playing_game(client: TestClient):
     client.post("/api/answers", json={"answers": answers})
 
 
+def _calculate_boundary(positions: list[list[int]]) -> list[tuple[int, int]]:
+    """Calculate boundary cells that surround the given positions.
+
+    Returns cells that form a perimeter around the region.
+    """
+    region_set = {(p[0], p[1]) for p in positions}
+
+    # Find bounding box
+    min_x = min(p[0] for p in positions)
+    max_x = max(p[0] for p in positions)
+    min_y = min(p[1] for p in positions)
+    max_y = max(p[1] for p in positions)
+
+    # Expand by 1 to create boundary
+    boundary = []
+    for x in range(min_x - 1, max_x + 2):
+        for y in range(min_y - 1, max_y + 2):
+            # Skip if inside region
+            if (x, y) in region_set:
+                continue
+            # Include if adjacent to bounding box edge
+            if x == min_x - 1 or x == max_x + 1 or y == min_y - 1 or y == max_y + 1:
+                if x >= 0 and y >= 0:  # Stay in bounds
+                    boundary.append((x, y))
+
+    return boundary
+
+
 @pytest.fixture
 def select_hinted_region(client: TestClient, playing_game) -> str:
-    """Get hint, select all positions in the region, return the bucket."""
+    """Get hint, select boundary around the region, return the bucket.
+
+    With boundary-based classification, we select cells AROUND the region
+    (forming a perimeter), not the region cells themselves.
+    """
     hint = HintResponse(**client.get("/api/hint").json())
-    for pos in hint.region.positions:
-        client.post("/api/select", json={"x": pos[0], "y": pos[1]})
+    boundary = _calculate_boundary(hint.region.positions)
+    for x, y in boundary:
+        client.post("/api/select", json={"x": x, "y": y})
     return hint.region.bucket
