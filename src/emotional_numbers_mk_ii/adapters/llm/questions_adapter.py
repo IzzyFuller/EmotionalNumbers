@@ -81,6 +81,7 @@ class LLMQuestionsAdapter:
             List of question dicts with 'id' and 'text' keys.
         """
         from mlx_lm import generate
+        from mlx_lm.sample_utils import make_sampler
 
         model, tokenizer = get_model()
 
@@ -93,5 +94,8 @@ class LLMQuestionsAdapter:
             messages, tokenize=False, add_generation_prompt=True
         )
 
-        response = generate(model, tokenizer, prompt=prompt, max_tokens=500)
+        sampler = make_sampler(temp=0.7)
+        response = generate(
+            model, tokenizer, prompt=prompt, max_tokens=500, sampler=sampler
+        )
         return parse_questions_response(response)

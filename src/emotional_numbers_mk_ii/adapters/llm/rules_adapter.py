@@ -227,6 +227,7 @@ class LLMRulesAdapter:
             RuleSet with regions and behaviors.
         """
         from mlx_lm import generate
+        from mlx_lm.sample_utils import make_sampler
 
         model, tokenizer = get_model()
 
@@ -241,5 +242,8 @@ class LLMRulesAdapter:
             messages, tokenize=False, add_generation_prompt=True
         )
 
-        response = generate(model, tokenizer, prompt=prompt, max_tokens=1500)
+        sampler = make_sampler(temp=0.7)
+        response = generate(
+            model, tokenizer, prompt=prompt, max_tokens=1500, sampler=sampler
+        )
         return parse_llm_response(response, rows, cols)

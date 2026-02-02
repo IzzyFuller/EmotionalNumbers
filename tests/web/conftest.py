@@ -95,7 +95,7 @@ MOCK_RULES_JSON = json.dumps(
 )
 
 
-def _mock_mlx_generate(model, tokenizer, prompt, max_tokens):  # noqa: ARG001
+def _mock_mlx_generate(model, tokenizer, prompt, max_tokens, sampler=None):  # noqa: ARG001
     """Mock for mlx_lm.generate - returns realistic JSON responses."""
     if "short questions" in prompt.lower():
         return MOCK_QUESTIONS_JSON
@@ -110,6 +110,11 @@ def _mock_mlx_load(model_path):  # noqa: ARG001
         "content"
     ]  # noqa: ARG005
     return mock_model, mock_tokenizer
+
+
+def _mock_make_sampler(temp=0.0):  # noqa: ARG001
+    """Mock for mlx_lm.sample_utils.make_sampler."""
+    return MagicMock()
 
 
 # ============================================================================
@@ -158,6 +163,7 @@ def client(questions_adapter, rules_adapter):
     with (
         patch("mlx_lm.load", side_effect=_mock_mlx_load),
         patch("mlx_lm.generate", side_effect=_mock_mlx_generate),
+        patch("mlx_lm.sample_utils.make_sampler", side_effect=_mock_make_sampler),
     ):
         yield TestClient(app)
 

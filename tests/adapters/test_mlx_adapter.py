@@ -287,12 +287,18 @@ class TestLLMRulesAdapter:
         mock_tokenizer = MagicMock()
         mock_tokenizer.apply_chat_template.return_value = "formatted prompt"
 
-        # Create a mock mlx_lm module
+        # Create mock mlx_lm module and submodules
         mock_mlx_lm = MagicMock()
         mock_mlx_lm.load.return_value = (mock_model, mock_tokenizer)
         mock_mlx_lm.generate.return_value = valid_llm_response
 
-        with patch.dict("sys.modules", {"mlx_lm": mock_mlx_lm}):
+        mock_sample_utils = MagicMock()
+        mock_sample_utils.make_sampler.return_value = MagicMock()
+
+        with patch.dict(
+            "sys.modules",
+            {"mlx_lm": mock_mlx_lm, "mlx_lm.sample_utils": mock_sample_utils},
+        ):
             adapter = LLMRulesAdapter()
             rule_set = adapter.generate_rules(sample_answers, rows=25, cols=40)
 

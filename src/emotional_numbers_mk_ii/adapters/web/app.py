@@ -6,9 +6,9 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from emotional_numbers_mk_ii.adapters.deterministic import (
-    DeterministicQuestionsAdapter,
-    DeterministicRulesAdapter,
+from emotional_numbers_mk_ii.adapters.llm import (
+    LLMQuestionsAdapter,
+    LLMRulesAdapter,
 )
 from emotional_numbers_mk_ii.adapters.web.api import (
     GameSession,
@@ -24,13 +24,11 @@ app = FastAPI(title="LUMON MDR Terminal")
 # Wire up API routes
 app.include_router(router)
 
-# Initialize session with deterministic adapters
-# - Questions: Random selection from Severance-style question bank
-# - Rules: Seed-based deterministic generation (no LLM failures)
+# Initialize session with LLM adapters
 set_session(
     GameSession(
-        questions_adapter=DeterministicQuestionsAdapter(),
-        rules_adapter=DeterministicRulesAdapter(),
+        questions_adapter=LLMQuestionsAdapter(),
+        rules_adapter=LLMRulesAdapter(),
     )
 )
 
