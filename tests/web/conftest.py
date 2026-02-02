@@ -94,23 +94,22 @@ MOCK_RULES_JSON = json.dumps(
 )
 
 
-def _create_mock_mlx_lm():
-    """Create mock mlx_lm module - only mocks load() and generate()."""
+def _mock_mlx_generate(model, tokenizer, prompt, max_tokens):
+    """Mock for mlx_lm.generate - returns realistic JSON responses."""
+    # Questions prompt contains "short questions", rules prompt contains "regions"
+    if "short questions" in prompt.lower():
+        return MOCK_QUESTIONS_JSON
+    return MOCK_RULES_JSON
+
+
+def _mock_mlx_load(model_path):
+    """Mock for mlx_lm.load - returns stub model/tokenizer tuple."""
     mock_model = MagicMock()
     mock_tokenizer = MagicMock()
     mock_tokenizer.apply_chat_template.side_effect = lambda msgs, **kw: msgs[1][
         "content"
     ]
-
-    def mock_generate(model, tokenizer, prompt, max_tokens):
-        if "onboarding questions" in prompt.lower():
-            return MOCK_QUESTIONS_JSON
-        return MOCK_RULES_JSON
-
-    mock_mlx_lm = MagicMock()
-    mock_mlx_lm.load.return_value = (mock_model, mock_tokenizer)
-    mock_mlx_lm.generate.side_effect = mock_generate
-    return mock_mlx_lm
+    return mock_model, mock_tokenizer
 
 
 # ============================================================================
@@ -162,43 +161,23 @@ def rules_adapter(rules_adapter_type):
 
 
 @pytest.fixture
-def client(questions_adapter_type, rules_adapter_type):
+def client(questions_adapter, rules_adapter):
     """Create test client with parameterized adapters.
 
-    LLM adapters have mlx_lm mocked at the boundary.
-    Deterministic adapters run pure logic with no mocking.
+    Only mlx_lm.load and mlx_lm.generate are mocked - the specific functions
+    that can't run without the actual model.
     """
     reset_model()
 
-    # Determine if we need mocking (any LLM adapter)
-    needs_mock = questions_adapter_type == "llm" or rules_adapter_type == "llm"
-
-    # Create adapters
-    if questions_adapter_type == "llm":
-        questions_adapter = LLMQuestionsAdapter()
-    else:
-        questions_adapter = DeterministicQuestionsAdapter(seed=42)
-
-    if rules_adapter_type == "llm":
-        rules_adapter = LLMRulesAdapter()
-    else:
-        rules_adapter = DeterministicRulesAdapter()
-
-    # Create session with adapters
     session = GameSession(
         questions_adapter=questions_adapter,
         rules_adapter=rules_adapter,
     )
 
-    if needs_mock:
-        with patch.dict("sys.modules", {"mlx_lm": _create_mock_mlx_lm()}):
-            # Import app fresh within mock context
-            set_session(session)
-            from emotional_numbers_mk_ii.adapters.web.app import app
-
-            yield TestClient(app)
-    else:
-        # Pure deterministic - no mocking needed
+    with (
+        patch("mlx_lm.load", side_effect=_mock_mlx_load),
+        patch("mlx_lm.generate", side_effect=_mock_mlx_generate),
+    ):
         set_session(session)
         from emotional_numbers_mk_ii.adapters.web.app import app
 
