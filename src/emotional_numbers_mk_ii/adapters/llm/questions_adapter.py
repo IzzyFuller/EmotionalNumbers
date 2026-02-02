@@ -28,14 +28,13 @@ QUESTION_SYSTEM_PROMPT = """You generate short, simple questions. Each question 
 
 def _build_question_prompt(count: int) -> str:
     """Build prompt for generating onboarding questions."""
-    return f"""Generate {count} short questions. Each question is ONE simple sentence asking for ONE thing.
+    return f"""Generate {count} short questions for a quirky corporate onboarding survey.
 
-Vary the question types. Some examples of types (but make up your own):
-- What is the name of...?
-- What color is...?
-- Rate X from 1-10.
-- Which do you prefer, A or B?
-- Describe X in one word.
+Each question should:
+- Be one simple sentence
+- Ask about personal preferences, memories, sensations, or associations
+- Feel slightly unusual or unexpected, like a personality test from a strange company
+- Vary in format: some ask for descriptions, some for choices, some for ratings, some for single words
 
 Output ONLY this JSON:
 {{

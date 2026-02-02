@@ -1,4 +1,4 @@
-"""LLM-based rules adapter using MLX."""
+"""Hybrid rules adapter: algorithmic regions + LLM emotional assignment."""
 
 from __future__ import annotations
 
@@ -8,71 +8,39 @@ import re
 from pydantic import BaseModel, field_validator
 
 from emotional_numbers_mk_ii.adapters.llm.model_loader import get_model
-from emotional_numbers_mk_ii.adapters.llm.prompts import SYSTEM_PROMPT
+from emotional_numbers_mk_ii.adapters.llm.region_generator import generate_regions
 from emotional_numbers_mk_ii.domain.game import Region, RegionBehavior, RuleSet
 
 
 # ============================================================================
-# Pydantic Models for LLM Response
+# Pydantic Models
 # ============================================================================
 
 
-class LLMRegion(BaseModel):
-    """A region from LLM output."""
+class EmotionAssignment(BaseModel):
+    """Emotional assignment for a region."""
 
+    region_id: int
     bucket: str
-    positions: list[tuple[int, int]]
+    rule: str
+    intensity: float
+    frequency: float
 
-    @field_validator("positions", mode="before")
+    @field_validator("intensity")
     @classmethod
-    def convert_positions(cls, v: list) -> list[tuple[int, int]]:
-        """Convert [[x, y], ...] to [(x, y), ...]."""
-        return [tuple(pos) for pos in v]
+    def clamp_intensity(cls, v: float) -> float:
+        return max(0.2, min(1.0, v))
 
-
-class LLMBehavior(BaseModel):
-    """Behavior parameters from LLM output."""
-
-    bucket: str
-    jiggle_intensity: float
-    jiggle_frequency: float
-    sound_id: str
-
-    @field_validator("jiggle_intensity")
+    @field_validator("frequency")
     @classmethod
-    def validate_intensity(cls, v: float) -> float:
-        """Clamp intensity to valid range, avoiding reserved default."""
-        v = max(0.2, min(1.0, v))
-        # Avoid reserved default value
-        if abs(v - 0.15) < 0.01:
-            v = 0.2
-        return v
-
-    @field_validator("jiggle_frequency")
-    @classmethod
-    def validate_frequency(cls, v: float) -> float:
-        """Clamp frequency to valid range, avoiding reserved default."""
-        v = max(0.5, min(2.0, v))
-        # Avoid reserved default value
-        if abs(v - 0.8) < 0.01:
-            v = 0.75
-        return v
-
-    @field_validator("sound_id")
-    @classmethod
-    def validate_sound_id(cls, v: str) -> str:
-        """Ensure sound_id is not the reserved default."""
-        if v == "tone_00":
-            return "tone_01"
-        return v
+    def clamp_frequency(cls, v: float) -> float:
+        return max(0.5, min(2.0, v))
 
 
-class LLMRuleResponse(BaseModel):
-    """Complete LLM response for rule generation."""
+class EmotionsResponse(BaseModel):
+    """LLM response for emotional assignments."""
 
-    hidden_rules: dict[str, str]
-    regions: list[LLMRegion]
-    behaviors: list[LLMBehavior]
+    assignments: list[EmotionAssignment]
 
 
 # ============================================================================
@@ -80,58 +48,32 @@ class LLMRuleResponse(BaseModel):
 # ============================================================================
 
 
-def _build_user_prompt(answers: list[dict], rows: int, cols: int) -> str:
-    """Build the user prompt content."""
+def _build_emotions_prompt(answers: list[dict], num_regions: int) -> str:
+    """Build prompt for emotional assignment."""
     answers_formatted = "\n".join(
-        f"- Question {a['questionId']}: {a['answer']}" for a in answers
+        f"- {a['questionId']}: {a['answer']}" for a in answers
     )
 
-    return f"""Worker onboarding responses:
+    return f"""Worker responses:
 {answers_formatted}
 
-Create 5 classification regions for a {cols}x{rows} grid (x: 0-{cols - 1}, y: 0-{rows - 1}).
+Assign emotional qualities to {num_regions} regions based on the worker's answers above.
+Create unique rules that reflect their personality.
 
-CRITICAL - NO OVERLAPPING CELLS:
-- Each cell coordinate can only appear in ONE region
-- Before adding a position, verify it is not already used by another region
-- If you reuse a coordinate, the puzzle will be invalid
-
-Each region:
-- 2 to 20 contiguous cells (vary the sizes)
-- All 5 buckets (01-05) must have at least one region
-
-Behavior constraints:
-- jiggle_intensity: between 0.2 and 1.0
-- jiggle_frequency: between 0.5 and 2.0
-- sound_id: assign one of these tones to each bucket based on its emotional quality:
-  * tone_01: low, grounded, stable
-  * tone_02: warm, hopeful
-  * tone_03: tense, unsettled
-  * tone_04: bright, alert
-  * tone_05: high, ethereal
-
-Based on the worker's answers, create hidden rules connecting each bucket to an emotional quality. Then assign the tone that best fits each bucket's emotional character.
-
-Output ONLY valid JSON:
+Output JSON:
 {{
-  "hidden_rules": {{
-    "01": "YOUR RULE",
-    "02": "YOUR RULE",
-    "03": "YOUR RULE",
-    "04": "YOUR RULE",
-    "05": "YOUR RULE"
-  }},
-  "regions": [
-    {{"bucket": "01", "positions": [[x, y], [x, y], ...]}}
-  ],
-  "behaviors": [
-    {{"bucket": "01", "jiggle_intensity": VALUE, "jiggle_frequency": VALUE, "sound_id": "tone_XX"}}
+  "assignments": [
+    {{"region_id": 1, "bucket": "01", "rule": "<QUALITY_FROM_ANSWERS>", "intensity": <0.2-1.0>, "frequency": <0.5-2.0>}},
+    {{"region_id": 2, "bucket": "02", "rule": "<QUALITY_FROM_ANSWERS>", "intensity": <0.2-1.0>, "frequency": <0.5-2.0>}},
+    {{"region_id": 3, "bucket": "03", "rule": "<QUALITY_FROM_ANSWERS>", "intensity": <0.2-1.0>, "frequency": <0.5-2.0>}},
+    {{"region_id": 4, "bucket": "04", "rule": "<QUALITY_FROM_ANSWERS>", "intensity": <0.2-1.0>, "frequency": <0.5-2.0>}},
+    {{"region_id": 5, "bucket": "05", "rule": "<QUALITY_FROM_ANSWERS>", "intensity": <0.2-1.0>, "frequency": <0.5-2.0>}}
   ]
 }}"""
 
 
 # ============================================================================
-# Response Parsing and Validation
+# Errors
 # ============================================================================
 
 
@@ -139,84 +81,19 @@ class RuleValidationError(Exception):
     """Error during rule validation."""
 
 
-def validate_regions(regions: list[LLMRegion], rows: int, cols: int) -> None:
-    """Validate regions don't overlap and are in bounds."""
-    used_positions: set[tuple[int, int]] = set()
-    buckets = {"01", "02", "03", "04", "05"}
-
-    for region in regions:
-        # Validate bucket
-        if region.bucket not in buckets:
-            raise RuleValidationError(f"Invalid bucket: {region.bucket}")
-
-        # Validate region size (at least 2 cells, reasonable max)
-        if not (2 <= len(region.positions) <= 20):
-            raise RuleValidationError(
-                f"Region size {len(region.positions)} out of range [2, 20]"
-            )
-
-        for x, y in region.positions:
-            # Check bounds
-            if not (0 <= x < cols and 0 <= y < rows):
-                raise RuleValidationError(f"Position ({x}, {y}) out of bounds")
-
-            # Check overlap
-            if (x, y) in used_positions:
-                raise RuleValidationError(
-                    f"Position ({x}, {y}) overlaps with another region"
-                )
-
-            used_positions.add((x, y))
-
-
-def convert_to_ruleset(response: LLMRuleResponse) -> RuleSet:
-    """Convert LLM response to domain RuleSet."""
-    regions = [
-        Region(bucket=r.bucket, positions=list(r.positions)) for r in response.regions
-    ]
-
-    behaviors = [
-        RegionBehavior(
-            bucket=b.bucket,
-            jiggle_intensity=b.jiggle_intensity,
-            jiggle_frequency=b.jiggle_frequency,
-            sound_id=b.sound_id,
-        )
-        for b in response.behaviors
-    ]
-
-    return RuleSet(regions=regions, behaviors=behaviors)
-
-
-def parse_llm_response(raw: str, rows: int, cols: int) -> RuleSet:
-    """Parse LLM JSON response into RuleSet."""
-    # Extract JSON from response (may have preamble)
-    json_match = re.search(r"\{[\s\S]*\}", raw)
-    if not json_match:
-        raise RuleValidationError("No JSON found in response")
-
-    data = json.loads(json_match.group())
-    response = LLMRuleResponse.model_validate(data)
-
-    # Validate regions
-    validate_regions(response.regions, rows, cols)
-
-    return convert_to_ruleset(response)
-
-
 # ============================================================================
-# LLM Rules Adapter
+# Adapter
 # ============================================================================
 
 
 class LLMRulesAdapter:
-    """LLM-based rule generator using MLX.
+    """Hybrid rule generator: algorithmic regions + LLM emotional assignment.
 
     Implements RulesRepository protocol.
     """
 
     def generate_rules(self, answers: list[dict], rows: int, cols: int) -> RuleSet:
-        """Generate rules using MLX LLM.
+        """Generate rules: algorithmic regions, LLM emotions.
 
         Args:
             answers: List of answer dicts with 'questionId' and 'answer' keys.
@@ -229,21 +106,72 @@ class LLMRulesAdapter:
         from mlx_lm import generate
         from mlx_lm.sample_utils import make_sampler
 
+        # Step 1: Generate regions algorithmically (guaranteed valid)
+        seed = _answers_to_seed(answers)
+        regions = generate_regions(rows=rows, cols=cols, num_regions=5, seed=seed)
+
+        # Step 2: LLM assigns emotional qualities
         model, tokenizer = get_model()
-
-        # Build chat messages
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": _build_user_prompt(answers, rows, cols)},
-        ]
-
-        # Apply chat template
-        prompt = tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-
         sampler = make_sampler(temp=0.7)
-        response = generate(
-            model, tokenizer, prompt=prompt, max_tokens=1500, sampler=sampler
+
+        emotions_prompt = tokenizer.apply_chat_template(
+            [
+                {
+                    "role": "user",
+                    "content": _build_emotions_prompt(answers, len(regions)),
+                }
+            ],
+            tokenize=False,
+            add_generation_prompt=True,
         )
-        return parse_llm_response(response, rows, cols)
+        emotions_raw = generate(
+            model, tokenizer, prompt=emotions_prompt, max_tokens=600, sampler=sampler
+        )
+        emotions = self._parse_emotions(emotions_raw)
+
+        return self._build_ruleset(regions, emotions)
+
+    def _parse_emotions(self, raw: str) -> list[EmotionAssignment]:
+        """Parse LLM emotions response."""
+        json_match = re.search(r"\{[\s\S]*\}", raw)
+        if not json_match:
+            raise RuleValidationError("No JSON found in emotions response")
+
+        data = json.loads(json_match.group())
+        return EmotionsResponse.model_validate(data).assignments
+
+    def _build_ruleset(self, regions, emotions: list[EmotionAssignment]) -> RuleSet:
+        """Combine algorithmic regions with LLM emotions."""
+        emotion_map = {e.region_id: e for e in emotions}
+
+        domain_regions = []
+        behaviors_by_bucket: dict[str, RegionBehavior] = {}
+
+        for region in regions:
+            emotion = emotion_map.get(region.id)
+            bucket = emotion.bucket if emotion else f"0{region.id}"
+
+            domain_regions.append(
+                Region(bucket=bucket, positions=list(region.positions))
+            )
+
+            if bucket not in behaviors_by_bucket:
+                behaviors_by_bucket[bucket] = RegionBehavior(
+                    bucket=bucket,
+                    jiggle_intensity=emotion.intensity if emotion else 0.5,
+                    jiggle_frequency=emotion.frequency if emotion else 1.0,
+                    sound_id=f"tone_{bucket}",
+                )
+
+        return RuleSet(
+            regions=domain_regions, behaviors=list(behaviors_by_bucket.values())
+        )
+
+
+def _answers_to_seed(answers: list[dict]) -> int:
+    """Convert answers to a deterministic seed."""
+    combined = "|".join(f"{a['questionId']}:{a['answer']}" for a in answers)
+    hash_val = 0
+    for char in combined:
+        hash_val = ((hash_val << 5) - hash_val + ord(char)) & 0xFFFFFFFF
+    return hash_val

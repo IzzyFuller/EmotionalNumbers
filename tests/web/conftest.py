@@ -40,75 +40,66 @@ MOCK_QUESTIONS_JSON = json.dumps(
     }
 )
 
-MOCK_RULES_JSON = json.dumps(
+# Emotions response - LLM now only assigns emotions, regions are algorithmic
+MOCK_EMOTIONS_JSON = json.dumps(
     {
-        "hidden_rules": {
-            "01": "Numbers that feel cold",
-            "02": "Numbers that feel warm",
-            "03": "Numbers that feel sharp",
-            "04": "Numbers that feel soft",
-            "05": "Numbers that feel heavy",
-        },
-        "regions": [
-            {"bucket": "01", "positions": [[5, 10], [6, 10], [5, 11], [6, 11]]},
+        "assignments": [
             {
-                "bucket": "02",
-                "positions": [[20, 3], [21, 3], [22, 3], [20, 4], [21, 4]],
-            },
-            {"bucket": "03", "positions": [[10, 15], [11, 15], [12, 15], [13, 15]]},
-            {"bucket": "04", "positions": [[30, 20], [31, 20], [30, 21], [31, 21]]},
-            {"bucket": "05", "positions": [[2, 2], [3, 2], [2, 3], [3, 3]]},
-        ],
-        "behaviors": [
-            {
+                "region_id": 1,
                 "bucket": "01",
-                "jiggle_intensity": 0.3,
-                "jiggle_frequency": 1.2,
-                "sound_id": "tone_01",
+                "rule": "cold",
+                "intensity": 0.3,
+                "frequency": 1.2,
             },
             {
+                "region_id": 2,
                 "bucket": "02",
-                "jiggle_intensity": 0.7,
-                "jiggle_frequency": 1.1,
-                "sound_id": "tone_02",
+                "rule": "warm",
+                "intensity": 0.7,
+                "frequency": 1.1,
             },
             {
+                "region_id": 3,
                 "bucket": "03",
-                "jiggle_intensity": 0.5,
-                "jiggle_frequency": 1.5,
-                "sound_id": "tone_03",
+                "rule": "sharp",
+                "intensity": 0.5,
+                "frequency": 1.5,
             },
             {
+                "region_id": 4,
                 "bucket": "04",
-                "jiggle_intensity": 0.25,
-                "jiggle_frequency": 1.0,
-                "sound_id": "tone_04",
+                "rule": "soft",
+                "intensity": 0.4,
+                "frequency": 1.0,
             },
             {
+                "region_id": 5,
                 "bucket": "05",
-                "jiggle_intensity": 0.9,
-                "jiggle_frequency": 0.6,
-                "sound_id": "tone_05",
+                "rule": "heavy",
+                "intensity": 0.9,
+                "frequency": 0.6,
             },
-        ],
+        ]
     }
 )
 
 
 def _mock_mlx_generate(model, tokenizer, prompt, max_tokens, sampler=None):  # noqa: ARG001
     """Mock for mlx_lm.generate - returns realistic JSON responses."""
-    if "short questions" in prompt.lower():
+    if "short questions" in prompt.lower() or "quirky corporate" in prompt.lower():
         return MOCK_QUESTIONS_JSON
-    return MOCK_RULES_JSON
+    # Rules adapter now only calls LLM for emotional assignment
+    return MOCK_EMOTIONS_JSON
 
 
 def _mock_mlx_load(model_path):  # noqa: ARG001
     """Mock for mlx_lm.load - returns stub model/tokenizer tuple."""
     mock_model = MagicMock()
     mock_tokenizer = MagicMock()
-    mock_tokenizer.apply_chat_template.side_effect = lambda msgs, **kwargs: msgs[1][
-        "content"
-    ]  # noqa: ARG005
+    # Concatenate all message contents so mock detection works
+    mock_tokenizer.apply_chat_template.side_effect = lambda msgs, **kwargs: " ".join(
+        m["content"] for m in msgs
+    )
     return mock_model, mock_tokenizer
 
 
