@@ -1,4 +1,4 @@
-"""Fixtures for web API tests with parameterized adapter combinations."""
+"""Fixtures for web API tests."""
 
 import json
 from unittest.mock import MagicMock, patch
@@ -21,10 +21,11 @@ from emotional_numbers_mk_ii.adapters.web.api import (
     StartResponse,
     set_session,
 )
+from emotional_numbers_mk_ii.adapters.web.app import app
 
 
 # ============================================================================
-# Mock LLM Responses (for boundary mocking)
+# Mock Data for LLM Boundary
 # ============================================================================
 
 MOCK_QUESTIONS_JSON = json.dumps(
@@ -94,96 +95,78 @@ MOCK_RULES_JSON = json.dumps(
 )
 
 
-def _mock_mlx_generate(model, tokenizer, prompt, max_tokens):
+def _mock_mlx_generate(model, tokenizer, prompt, max_tokens):  # noqa: ARG001
     """Mock for mlx_lm.generate - returns realistic JSON responses."""
-    # Questions prompt contains "short questions", rules prompt contains "regions"
     if "short questions" in prompt.lower():
         return MOCK_QUESTIONS_JSON
     return MOCK_RULES_JSON
 
 
-def _mock_mlx_load(model_path):
+def _mock_mlx_load(model_path):  # noqa: ARG001
     """Mock for mlx_lm.load - returns stub model/tokenizer tuple."""
     mock_model = MagicMock()
     mock_tokenizer = MagicMock()
-    mock_tokenizer.apply_chat_template.side_effect = lambda msgs, **kw: msgs[1][
+    mock_tokenizer.apply_chat_template.side_effect = lambda msgs, **kwargs: msgs[1][
         "content"
-    ]
+    ]  # noqa: ARG005
     return mock_model, mock_tokenizer
 
 
 # ============================================================================
-# Parameterized Adapter Fixtures
+# Adapter Fixtures - Direct instances, no conditionals
 # ============================================================================
 
 
 @pytest.fixture(
     params=[
-        pytest.param("llm", id="llm-questions"),
-        pytest.param("deterministic", id="deterministic-questions"),
-    ],
+        pytest.param(DeterministicQuestionsAdapter(seed=42), id="deterministic"),
+        pytest.param(LLMQuestionsAdapter(), id="llm"),
+    ]
 )
-def questions_adapter_type(request):
-    """Parameterized questions adapter type."""
+def questions_adapter(request):
+    """Parameterized questions adapter."""
     return request.param
 
 
 @pytest.fixture(
     params=[
-        pytest.param("llm", id="llm-rules"),
-        pytest.param("deterministic", id="deterministic-rules"),
-    ],
+        pytest.param(DeterministicRulesAdapter(), id="deterministic"),
+        pytest.param(LLMRulesAdapter(), id="llm"),
+    ]
 )
-def rules_adapter_type(request):
-    """Parameterized rules adapter type."""
+def rules_adapter(request):
+    """Parameterized rules adapter."""
     return request.param
 
 
-@pytest.fixture
-def questions_adapter(questions_adapter_type):
-    """Create questions adapter based on type."""
-    if questions_adapter_type == "llm":
-        return LLMQuestionsAdapter()
-    return DeterministicQuestionsAdapter(seed=42)
-
-
-@pytest.fixture
-def rules_adapter(rules_adapter_type):
-    """Create rules adapter based on type."""
-    if rules_adapter_type == "llm":
-        return LLMRulesAdapter()
-    return DeterministicRulesAdapter()
-
-
 # ============================================================================
-# Test Client Fixtures
+# Test Client
 # ============================================================================
 
 
 @pytest.fixture
 def client(questions_adapter, rules_adapter):
-    """Create test client with parameterized adapters.
-
-    Only mlx_lm.load and mlx_lm.generate are mocked - the specific functions
-    that can't run without the actual model.
-    """
+    """Test client with injected adapters. mlx_lm mocked at boundary."""
     reset_model()
 
     session = GameSession(
         questions_adapter=questions_adapter,
         rules_adapter=rules_adapter,
     )
+    set_session(session)
 
     with (
         patch("mlx_lm.load", side_effect=_mock_mlx_load),
         patch("mlx_lm.generate", side_effect=_mock_mlx_generate),
     ):
-        set_session(session)
-        from emotional_numbers_mk_ii.adapters.web.app import app
-
         yield TestClient(app)
 
     reset_model()
+
+
+# ============================================================================
+# Game State Fixtures
+# ============================================================================
 
 
 @pytest.fixture
@@ -196,43 +179,26 @@ def playing_game(client: TestClient):
     client.post("/api/answers", json={"answers": answers})
 
 
-def _calculate_boundary(positions: list[list[int]]) -> list[tuple[int, int]]:
-    """Calculate boundary cells that surround the given positions.
-
-    Returns cells that form a perimeter around the region.
-    """
-    region_set = {(p[0], p[1]) for p in positions}
-
-    # Find bounding box
-    min_x = min(p[0] for p in positions)
-    max_x = max(p[0] for p in positions)
-    min_y = min(p[1] for p in positions)
-    max_y = max(p[1] for p in positions)
-
-    # Expand by 1 to create boundary
-    boundary = []
-    for x in range(min_x - 1, max_x + 2):
-        for y in range(min_y - 1, max_y + 2):
-            # Skip if inside region
-            if (x, y) in region_set:
-                continue
-            # Include if adjacent to bounding box edge
-            if x == min_x - 1 or x == max_x + 1 or y == min_y - 1 or y == max_y + 1:
-                if x >= 0 and y >= 0:  # Stay in bounds
-                    boundary.append((x, y))
-
-    return boundary
-
-
 @pytest.fixture
 def select_hinted_region(client: TestClient, playing_game) -> str:
-    """Get hint, select boundary around the region, return the bucket.
+    """Get hint, select boundary around region, return bucket.
 
-    With boundary-based classification, we select cells AROUND the region
-    (forming a perimeter), not the region cells themselves.
+    Boundary-based classification: select cells surrounding the region.
     """
+    _ = playing_game  # Ensure game is started
+
     hint = HintResponse(**client.get("/api/hint").json())
-    boundary = _calculate_boundary(hint.region.positions)
-    for x, y in boundary:
-        client.post("/api/select", json={"x": x, "y": y})
+    positions = hint.region.positions
+
+    # Calculate boundary: cells surrounding the region
+    region_set = {(p[0], p[1]) for p in positions}
+    min_x, max_x = min(p[0] for p in positions), max(p[0] for p in positions)
+    min_y, max_y = min(p[1] for p in positions), max(p[1] for p in positions)
+
+    for x in range(min_x - 1, max_x + 2):
+        for y in range(min_y - 1, max_y + 2):
+            if (x, y) not in region_set and x >= 0 and y >= 0:
+                if x in (min_x - 1, max_x + 1) or y in (min_y - 1, max_y + 1):
+                    client.post("/api/select", json={"x": x, "y": y})
+
     return hint.region.bucket
