@@ -24,6 +24,7 @@ let answers = [];
 let currentQuestionIndex = 0;
 let gameState = null;
 let audioEngine = null;
+let audioContext = null;
 
 // ============================================================================
 // DOM References - Screens
@@ -72,6 +73,12 @@ async function handleBeginOrientation() {
   // Show loading state
   beginBtn.disabled = true;
   beginBtn.textContent = 'INITIALIZING...';
+
+  // Initialize audio on first user gesture (avoids autoplay restrictions)
+  if (!audioContext && typeof AudioContext !== 'undefined') {
+    audioContext = new AudioContext();
+    await audioContext.resume();
+  }
 
   const response = await api.startGame();
   questions = response.questions;
@@ -149,18 +156,17 @@ async function handleSubmitAnswer() {
 // ============================================================================
 
 function startAudio() {
-  if (typeof AudioContext !== 'undefined') {
-    const audioConfig = {
-      type: 'leitmotif',
-      name: 'neutral',
-      baseFrequency: 220,
-      pattern: 'ambient',
-    };
-    const audioContext = new AudioContext();
-    audioEngine = createAudioEngine(audioContext);
-    const leitmotif = createLeitmotif(audioConfig);
-    audioEngine.start(leitmotif);
-  }
+  if (!audioContext) return;
+
+  const audioConfig = {
+    type: 'leitmotif',
+    name: 'neutral',
+    baseFrequency: 220,
+    pattern: 'ambient',
+  };
+  audioEngine = createAudioEngine(audioContext);
+  const leitmotif = createLeitmotif(audioConfig);
+  audioEngine.start(leitmotif);
 }
 
 function renderGame() {
