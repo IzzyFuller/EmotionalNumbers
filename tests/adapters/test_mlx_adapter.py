@@ -7,7 +7,7 @@ import pytest
 
 from emotional_numbers_mk_ii.adapters.llm.model_loader import reset_model
 from emotional_numbers_mk_ii.adapters.llm.rules_adapter import (
-    EmotionAssignment,
+    BucketEmotion,
     LLMRulesAdapter,
 )
 from emotional_numbers_mk_ii.adapters.llm.region_generator import generate_regions
@@ -30,18 +30,15 @@ def sample_answers() -> list[dict]:
 
 @pytest.fixture
 def valid_emotions_response() -> str:
-    """Valid emotions JSON response from LLM - 20 regions mapped to 5 buckets."""
+    """Valid bucket emotions JSON response from LLM."""
     return json.dumps(
         {
-            "assignments": [
-                {
-                    "region_id": i,
-                    "bucket": f"{(i % 5) + 1:02d}",
-                    "rule": ["cold", "warm", "sharp", "soft", "heavy"][i % 5],
-                    "intensity": 0.3 + (i % 5) * 0.15,
-                    "frequency": 0.6 + (i % 5) * 0.2,
-                }
-                for i in range(1, 21)
+            "buckets": [
+                {"id": "01", "emotion": "cold", "intensity": 0.3, "frequency": 0.6},
+                {"id": "02", "emotion": "warm", "intensity": 0.5, "frequency": 0.8},
+                {"id": "03", "emotion": "sharp", "intensity": 0.6, "frequency": 1.0},
+                {"id": "04", "emotion": "soft", "intensity": 0.4, "frequency": 1.2},
+                {"id": "05", "emotion": "heavy", "intensity": 0.9, "frequency": 1.4},
             ]
         }
     )
@@ -94,22 +91,18 @@ class TestRegionGenerator:
 # ============================================================================
 
 
-class TestEmotionModels:
-    """Test Pydantic models for emotions."""
+class TestBucketEmotionModels:
+    """Test Pydantic models for bucket emotions."""
 
     def test_clamps_intensity(self):
         """Should clamp intensity to valid range."""
-        assignment = EmotionAssignment(
-            region_id=1, bucket="01", rule="test", intensity=1.5, frequency=1.0
-        )
-        assert assignment.intensity == 1.0
+        emotion = BucketEmotion(id="01", emotion="test", intensity=1.5, frequency=1.0)
+        assert emotion.intensity == 1.0
 
     def test_clamps_frequency(self):
         """Should clamp frequency to valid range."""
-        assignment = EmotionAssignment(
-            region_id=1, bucket="01", rule="test", intensity=0.5, frequency=0.3
-        )
-        assert assignment.frequency == 0.5
+        emotion = BucketEmotion(id="01", emotion="test", intensity=0.5, frequency=0.3)
+        assert emotion.frequency == 0.5
 
 
 # ============================================================================

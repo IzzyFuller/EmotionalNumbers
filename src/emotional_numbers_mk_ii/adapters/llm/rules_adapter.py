@@ -17,12 +17,11 @@ from emotional_numbers_mk_ii.domain.game import Region, RegionBehavior, RuleSet
 # ============================================================================
 
 
-class EmotionAssignment(BaseModel):
-    """Emotional assignment for a region."""
+class BucketEmotion(BaseModel):
+    """Emotional qualities for a bucket."""
 
-    region_id: int
-    bucket: str
-    rule: str
+    id: str
+    emotion: str
     intensity: float
     frequency: float
 
@@ -37,10 +36,10 @@ class EmotionAssignment(BaseModel):
         return max(0.5, min(2.0, v))
 
 
-class EmotionsResponse(BaseModel):
-    """LLM response for emotional assignments."""
+class BucketsResponse(BaseModel):
+    """LLM response for bucket emotions."""
 
-    assignments: list[EmotionAssignment]
+    buckets: list[BucketEmotion]
 
 
 # ============================================================================
@@ -48,32 +47,29 @@ class EmotionsResponse(BaseModel):
 # ============================================================================
 
 
-def _build_emotions_prompt(answers: list[dict], num_regions: int) -> str:
-    """Build prompt for emotional assignment."""
+def _build_emotions_prompt(answers: list[dict]) -> str:
+    """Build prompt for 5 bucket emotions based on answers."""
     answers_formatted = "\n".join(
         f"- {a['questionId']}: {a['answer']}" for a in answers
-    )
-
-    # Generate assignment examples dynamically
-    assignments = ",\n    ".join(
-        f'{{"region_id": {i}, "bucket": "{i:02d}", "rule": "EMOTION", "intensity": 0.5, "frequency": 1.0}}'
-        for i in range(1, num_regions + 1)
     )
 
     return f"""Worker responses:
 {answers_formatted}
 
-Assign emotional qualities to {num_regions} regions. Each region gets one of 5 buckets (01-05).
-Derive emotions from the worker's answers. Multiple regions can share a bucket.
+Create 5 emotional qualities for data buckets based on their answers.
 
-Output JSON with exactly {num_regions} assignments:
+Output JSON:
 {{
-  "assignments": [
-    {assignments}
+  "buckets": [
+    {{"id": "01", "emotion": "WORD", "intensity": 0.5, "frequency": 1.0}},
+    {{"id": "02", "emotion": "WORD", "intensity": 0.5, "frequency": 1.0}},
+    {{"id": "03", "emotion": "WORD", "intensity": 0.5, "frequency": 1.0}},
+    {{"id": "04", "emotion": "WORD", "intensity": 0.5, "frequency": 1.0}},
+    {{"id": "05", "emotion": "WORD", "intensity": 0.5, "frequency": 1.0}}
   ]
 }}
 
-Replace "EMOTION" with a feeling derived from their answers. intensity: 0.2-1.0, frequency: 0.5-2.0."""
+Replace WORD with feelings from their answers. Vary intensity (0.2-1.0) and frequency (0.5-2.0)."""
 
 
 # ============================================================================
@@ -119,41 +115,39 @@ class LLMRulesAdapter:
         sampler = make_sampler(temp=0.7)
 
         emotions_prompt = tokenizer.apply_chat_template(
-            [
-                {
-                    "role": "user",
-                    "content": _build_emotions_prompt(answers, len(regions)),
-                }
-            ],
+            [{"role": "user", "content": _build_emotions_prompt(answers)}],
             tokenize=False,
             add_generation_prompt=True,
         )
         emotions_raw = generate(
-            model, tokenizer, prompt=emotions_prompt, max_tokens=600, sampler=sampler
+            model, tokenizer, prompt=emotions_prompt, max_tokens=300, sampler=sampler
         )
-        emotions = self._parse_emotions(emotions_raw)
+        bucket_emotions = self._parse_bucket_emotions(emotions_raw)
 
-        return self._build_ruleset(regions, emotions)
+        return self._build_ruleset(regions, bucket_emotions)
 
-    def _parse_emotions(self, raw: str) -> list[EmotionAssignment]:
-        """Parse LLM emotions response."""
+    def _parse_bucket_emotions(self, raw: str) -> list[BucketEmotion]:
+        """Parse LLM bucket emotions response."""
         json_match = re.search(r"\{[\s\S]*\}", raw)
         if not json_match:
             raise RuleValidationError("No JSON found in emotions response")
 
         data = json.loads(json_match.group())
-        return EmotionsResponse.model_validate(data).assignments
+        return BucketsResponse.model_validate(data).buckets
 
-    def _build_ruleset(self, regions, emotions: list[EmotionAssignment]) -> RuleSet:
-        """Combine algorithmic regions with LLM emotions."""
-        emotion_map = {e.region_id: e for e in emotions}
+    def _build_ruleset(self, regions, bucket_emotions: list[BucketEmotion]) -> RuleSet:
+        """Combine algorithmic regions with LLM bucket emotions."""
+        # Map bucket id to emotion
+        emotion_map = {e.id: e for e in bucket_emotions}
+        buckets = ["01", "02", "03", "04", "05"]
 
         domain_regions = []
         behaviors_by_bucket: dict[str, RegionBehavior] = {}
 
-        for region in regions:
-            emotion = emotion_map.get(region.id)
-            bucket = emotion.bucket if emotion else f"0{region.id}"
+        # Cycle regions through 5 buckets
+        for i, region in enumerate(regions):
+            bucket = buckets[i % 5]
+            emotion = emotion_map.get(bucket)
 
             domain_regions.append(
                 Region(bucket=bucket, positions=list(region.positions))

@@ -133,7 +133,7 @@ body {
 .grid-area {
     flex: 1;
     padding: 20px;
-    overflow: hidden;
+    overflow: auto;
     position: relative;
 }
 
@@ -141,12 +141,14 @@ body {
     display: grid;
     gap: 2px;
     cursor: default;
-    width: 100%;
-    height: 100%;
+    width: max-content;
+    min-width: 100%;
 }
 
 .cell {
     aspect-ratio: 1;
+    min-width: 28px;
+    min-height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -391,7 +393,7 @@ body {
     transition: all 0.2s ease;
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
     background: var(--mdr-cyan);
     color: var(--bg-deep);
     box-shadow: 0 0 20px var(--mdr-glow);
@@ -399,6 +401,12 @@ body {
 
 .btn:active {
     transform: scale(0.98);
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* ========== ONBOARDING SCREEN ========== */
@@ -479,6 +487,12 @@ body {
 .answer-input:focus {
     border-color: var(--mdr-cyan);
     box-shadow: 0 0 15px var(--mdr-glow);
+}
+
+.answer-input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: var(--mdr-cyan-dim);
 }
 
 .onboarding-footer {

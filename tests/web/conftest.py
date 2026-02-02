@@ -40,19 +40,15 @@ MOCK_QUESTIONS_JSON = json.dumps(
     }
 )
 
-# Emotions response - LLM now only assigns emotions, regions are algorithmic
-# Generate 20 mock assignments to match the 20 regions
+# Bucket emotions - LLM generates 5 emotions, regions cycle through them
 MOCK_EMOTIONS_JSON = json.dumps(
     {
-        "assignments": [
-            {
-                "region_id": i,
-                "bucket": f"{(i % 5) + 1:02d}",
-                "rule": ["cold", "warm", "sharp", "soft", "heavy"][i % 5],
-                "intensity": 0.3 + (i % 5) * 0.15,
-                "frequency": 0.6 + (i % 5) * 0.2,
-            }
-            for i in range(1, 21)
+        "buckets": [
+            {"id": "01", "emotion": "cold", "intensity": 0.3, "frequency": 0.6},
+            {"id": "02", "emotion": "warm", "intensity": 0.5, "frequency": 0.8},
+            {"id": "03", "emotion": "sharp", "intensity": 0.6, "frequency": 1.0},
+            {"id": "04", "emotion": "soft", "intensity": 0.4, "frequency": 1.2},
+            {"id": "05", "emotion": "heavy", "intensity": 0.9, "frequency": 1.4},
         ]
     }
 )
