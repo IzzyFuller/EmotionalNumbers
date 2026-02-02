@@ -23,36 +23,28 @@ class LLMQuestionsResponse(BaseModel):
     questions: list[LLMQuestion]
 
 
-QUESTION_SYSTEM_PROMPT = """You are a Lumon Industries HR representative conducting employee orientation.
-
-Your questions should be:
-1. SEEMINGLY MUNDANE but subtly unsettling
-2. PERSONAL but in unexpected ways - sensory memories, emotional associations
-3. BUREAUCRATICALLY precise in phrasing
-4. Designed to "calibrate" the employee's experience
-
-The questions probe the worker's inner life while maintaining corporate detachment.
-Never explain why you're asking. Lumon cares about your wellbeing."""
+QUESTION_SYSTEM_PROMPT = """You generate short, simple questions. Each question is one sentence. No descriptions or explanations."""
 
 
 def _build_question_prompt(count: int) -> str:
     """Build prompt for generating onboarding questions."""
-    return f"""Generate {count} onboarding questions for a new Macro Data Refinement employee.
+    return f"""Generate {count} short questions. Each question is ONE simple sentence asking for ONE thing.
 
-Requirements:
-- Each question should feel corporate yet strangely intimate
-- Mix sensory questions (smells, textures, sounds) with emotional ones
-- Include one numerical self-assessment (compliance, contentment, etc.)
-- Questions should be 1-2 sentences max
+Vary the question types. Some examples of types (but make up your own):
+- What is the name of...?
+- What color is...?
+- Rate X from 1-10.
+- Which do you prefer, A or B?
+- Describe X in one word.
 
-Output ONLY valid JSON:
+Output ONLY this JSON:
 {{
   "questions": [
-    {{"id": "q1", "text": "What was the predominant smell of your childhood kitchen?"}},
-    {{"id": "q2", "text": "Describe the texture of your most treasured possession."}},
-    {{"id": "q3", "text": "What sound do you associate with disappointment?"}},
-    {{"id": "q4", "text": "What color best represents your relationship with authority?"}},
-    {{"id": "q5", "text": "On a scale of 1-10, rate your current sense of purpose."}}
+    {{"id": "q1", "text": "Your question here?"}},
+    {{"id": "q2", "text": "Your question here?"}},
+    {{"id": "q3", "text": "Your question here?"}},
+    {{"id": "q4", "text": "Your question here?"}},
+    {{"id": "q5", "text": "Your question here?"}}
   ]
 }}"""
 

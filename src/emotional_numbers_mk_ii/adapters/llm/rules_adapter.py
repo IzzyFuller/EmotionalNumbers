@@ -89,43 +89,43 @@ def _build_user_prompt(answers: list[dict], rows: int, cols: int) -> str:
     return f"""Worker onboarding responses:
 {answers_formatted}
 
-Create 5 classification regions for a {cols}x{rows} grid. CRITICAL: Each region must have UNIQUE positions - NO overlapping cells between ANY regions.
+Create 5 classification regions for a {cols}x{rows} grid (x: 0-{cols - 1}, y: 0-{rows - 1}).
 
-Rules:
-- Grid: x from 0 to {cols - 1}, y from 0 to {rows - 1}
-- Each region: 4 to 8 cells forming a rectangle
-- All 5 buckets (01-05) must have exactly one region each
-- Spread regions across the grid - use different areas
+CRITICAL - NO OVERLAPPING CELLS:
+- Each cell coordinate can only appear in ONE region
+- Before adding a position, verify it is not already used by another region
+- If you reuse a coordinate, the puzzle will be invalid
 
-Behavior constraints (IMPORTANT):
-- sound_id MUST be "tone_01" through "tone_05" only. NEVER use "tone_00" (reserved).
-- jiggle_intensity must be between 0.2 and 1.0. NEVER use 0.15 (reserved default).
-- jiggle_frequency must be between 0.5 and 2.0. NEVER use exactly 0.8 (reserved default).
+Each region:
+- 2 to 20 contiguous cells (vary the sizes)
+- All 5 buckets (01-05) must have at least one region
 
-Based on the worker's answers, create hidden rules connecting each bucket to an emotional quality.
+Behavior constraints:
+- jiggle_intensity: between 0.2 and 1.0
+- jiggle_frequency: between 0.5 and 2.0
+- sound_id: assign one of these tones to each bucket based on its emotional quality:
+  * tone_01: low, grounded, stable
+  * tone_02: warm, hopeful
+  * tone_03: tense, unsettled
+  * tone_04: bright, alert
+  * tone_05: high, ethereal
+
+Based on the worker's answers, create hidden rules connecting each bucket to an emotional quality. Then assign the tone that best fits each bucket's emotional character.
 
 Output ONLY valid JSON:
 {{
   "hidden_rules": {{
-    "01": "numbers that feel [quality based on answers]",
-    "02": "numbers that feel [different quality]",
-    "03": "numbers that feel [different quality]",
-    "04": "numbers that feel [different quality]",
-    "05": "numbers that feel [different quality]"
+    "01": "YOUR RULE",
+    "02": "YOUR RULE",
+    "03": "YOUR RULE",
+    "04": "YOUR RULE",
+    "05": "YOUR RULE"
   }},
   "regions": [
-    {{"bucket": "01", "positions": [[2, 2], [3, 2], [2, 3], [3, 3]]}},
-    {{"bucket": "02", "positions": [[10, 5], [11, 5], [12, 5], [10, 6], [11, 6], [12, 6]]}},
-    {{"bucket": "03", "positions": [[25, 10], [26, 10], [25, 11], [26, 11]]}},
-    {{"bucket": "04", "positions": [[15, 18], [16, 18], [17, 18], [15, 19], [16, 19], [17, 19]]}},
-    {{"bucket": "05", "positions": [[32, 8], [33, 8], [34, 8], [32, 9], [33, 9], [34, 9]]}}
+    {{"bucket": "01", "positions": [[x, y], [x, y], ...]}}
   ],
   "behaviors": [
-    {{"bucket": "01", "jiggle_intensity": 0.25, "jiggle_frequency": 1.0, "sound_id": "tone_01"}},
-    {{"bucket": "02", "jiggle_intensity": 0.5, "jiggle_frequency": 1.5, "sound_id": "tone_02"}},
-    {{"bucket": "03", "jiggle_intensity": 0.35, "jiggle_frequency": 0.6, "sound_id": "tone_03"}},
-    {{"bucket": "04", "jiggle_intensity": 0.7, "jiggle_frequency": 1.2, "sound_id": "tone_04"}},
-    {{"bucket": "05", "jiggle_intensity": 0.4, "jiggle_frequency": 1.8, "sound_id": "tone_05"}}
+    {{"bucket": "01", "jiggle_intensity": VALUE, "jiggle_frequency": VALUE, "sound_id": "tone_XX"}}
   ]
 }}"""
 
@@ -149,10 +149,10 @@ def validate_regions(regions: list[LLMRegion], rows: int, cols: int) -> None:
         if region.bucket not in buckets:
             raise RuleValidationError(f"Invalid bucket: {region.bucket}")
 
-        # Validate region size
-        if not (4 <= len(region.positions) <= 16):
+        # Validate region size (at least 2 cells, reasonable max)
+        if not (2 <= len(region.positions) <= 20):
             raise RuleValidationError(
-                f"Region size {len(region.positions)} out of range [4, 16]"
+                f"Region size {len(region.positions)} out of range [2, 20]"
             )
 
         for x, y in region.positions:

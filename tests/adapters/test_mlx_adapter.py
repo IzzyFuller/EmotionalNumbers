@@ -202,15 +202,15 @@ class TestValidateRegions:
             validate_regions(regions, rows=25, cols=40)
 
     def test_rejects_too_small_region(self):
-        """Should reject regions with fewer than 4 cells."""
+        """Should reject regions with fewer than 2 cells."""
         regions = [
-            LLMRegion(bucket="01", positions=[(0, 0), (1, 0), (0, 1)]),  # Only 3 cells
+            LLMRegion(bucket="01", positions=[(0, 0)]),  # Only 1 cell
         ]
         with pytest.raises(RuleValidationError, match="out of range"):
             validate_regions(regions, rows=25, cols=40)
 
     def test_rejects_too_large_region(self):
-        """Should reject regions with more than 16 cells."""
+        """Should reject regions with more than 20 cells."""
         positions = [(x, y) for x in range(5) for y in range(5)]  # 25 cells
         regions = [LLMRegion(bucket="01", positions=positions)]
         with pytest.raises(RuleValidationError, match="out of range"):

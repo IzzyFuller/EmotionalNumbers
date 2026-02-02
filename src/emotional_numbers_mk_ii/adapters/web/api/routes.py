@@ -193,6 +193,23 @@ async def classify_selection(
     )
 
 
+@router.get("/debug/regions")
+async def debug_regions(session: GameSession = Depends(get_session)) -> dict:
+    """Debug endpoint to see actual region positions."""
+    if not session.game:
+        return {"error": "No game in progress"}
+    return {
+        "regions": [
+            {"bucket": r.bucket, "positions": r.positions}
+            for r in session.game.rule_set.regions
+        ],
+        "behaviors": [
+            {"bucket": b.bucket, "sound_id": b.sound_id}
+            for b in session.game.rule_set.behaviors
+        ],
+    }
+
+
 @router.get("/hint", response_model=HintResponse)
 async def get_hint(session: GameSession = Depends(get_session)) -> HintResponse:
     """Get a hint about an unclassified region."""
