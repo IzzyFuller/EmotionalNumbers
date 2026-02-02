@@ -19,6 +19,31 @@ const PATTERNS = {
 };
 
 // ============================================================================
+// Tone Configurations - Each bucket has a distinct sound
+// ============================================================================
+
+export const TONE_CONFIGS = {
+  tone_00: { baseFrequency: 220, pattern: 'ambient' },  // Default (non-region)
+  tone_01: { baseFrequency: 165, pattern: 'ambient' },  // Low E - grounded, stable
+  tone_02: { baseFrequency: 196, pattern: 'ambient' },  // G - warm, hopeful
+  tone_03: { baseFrequency: 247, pattern: 'ambient' },  // B - tense, unsettled
+  tone_04: { baseFrequency: 294, pattern: 'ambient' },  // D - bright, alert
+  tone_05: { baseFrequency: 330, pattern: 'ambient' },  // E - high, ethereal
+};
+
+/**
+ * Gets the tone configuration for a sound_id.
+ * @param {string} soundId - The sound_id (e.g., "tone_01")
+ * @returns {Object} Tone configuration with baseFrequency and pattern
+ */
+export function getToneConfig(soundId) {
+  if (!soundId || !TONE_CONFIGS[soundId]) {
+    return TONE_CONFIGS.tone_00;
+  }
+  return TONE_CONFIGS[soundId];
+}
+
+// ============================================================================
 // Leitmotif Factory
 // ============================================================================
 
@@ -122,6 +147,17 @@ export function createAudioEngine(audioContext) {
 
     isPlaying() {
       return playing;
+    },
+
+    getCurrentLeitmotif() {
+      return currentLeitmotif;
+    },
+
+    switchLeitmotif(leitmotif) {
+      if (!playing) return;
+      stopLeitmotif();
+      playing = true;
+      startLeitmotif(leitmotif);
     },
   };
 }

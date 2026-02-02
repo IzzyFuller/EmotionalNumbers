@@ -6,7 +6,7 @@
  */
 
 import * as api from './api.js';
-import { createAudioEngine, createLeitmotif } from './audio.js';
+import { createAudioEngine, createLeitmotif, getToneConfig } from './audio.js';
 
 // ============================================================================
 // Application State
@@ -190,7 +190,7 @@ function renderGame() {
         style = `animation-delay: ${delay}s; --jiggle-scale: ${scale}; --jiggle-duration: ${duration}s;`;
       }
 
-      html += `<div class="${classes.join(' ')}" style="${style}" data-x="${cell.x}" data-y="${cell.y}">${cell.value}</div>`;
+      html += `<div class="${classes.join(' ')}" style="${style}" data-x="${cell.x}" data-y="${cell.y}" data-sound-id="${cell.sound_id}">${cell.value}</div>`;
     }
   }
   gridEl.innerHTML = html;
@@ -276,6 +276,8 @@ answerInput.addEventListener('keydown', (e) => {
 // Event Handlers - Game Screen (Cell Interaction)
 // ============================================================================
 
+let currentSoundId = null;
+
 gridEl.addEventListener('mouseover', (e) => {
   if (currentScreen !== AppScreen.GAME) return;
 
@@ -284,6 +286,15 @@ gridEl.addEventListener('mouseover', (e) => {
     const x = parseInt(cell.dataset.x);
     const y = parseInt(cell.dataset.y);
     updateHexDisplay(x, y);
+
+    // Switch audio tone based on cell's sound_id
+    const soundId = cell.dataset.soundId;
+    if (soundId !== currentSoundId && audioEngine) {
+      currentSoundId = soundId;
+      const toneConfig = getToneConfig(soundId);
+      const leitmotif = createLeitmotif(toneConfig);
+      audioEngine.switchLeitmotif(leitmotif);
+    }
   }
 });
 
