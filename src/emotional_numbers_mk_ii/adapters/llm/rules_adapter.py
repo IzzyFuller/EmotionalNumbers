@@ -54,22 +54,26 @@ def _build_emotions_prompt(answers: list[dict], num_regions: int) -> str:
         f"- {a['questionId']}: {a['answer']}" for a in answers
     )
 
+    # Generate assignment examples dynamically
+    assignments = ",\n    ".join(
+        f'{{"region_id": {i}, "bucket": "{i:02d}", "rule": "EMOTION", "intensity": 0.5, "frequency": 1.0}}'
+        for i in range(1, num_regions + 1)
+    )
+
     return f"""Worker responses:
 {answers_formatted}
 
-Assign emotional qualities to {num_regions} regions based on the worker's answers above.
-Create unique rules that reflect their personality.
+Assign emotional qualities to {num_regions} regions. Each region gets one of 5 buckets (01-05).
+Derive emotions from the worker's answers. Multiple regions can share a bucket.
 
-Output JSON:
+Output JSON with exactly {num_regions} assignments:
 {{
   "assignments": [
-    {{"region_id": 1, "bucket": "01", "rule": "<QUALITY_FROM_ANSWERS>", "intensity": <0.2-1.0>, "frequency": <0.5-2.0>}},
-    {{"region_id": 2, "bucket": "02", "rule": "<QUALITY_FROM_ANSWERS>", "intensity": <0.2-1.0>, "frequency": <0.5-2.0>}},
-    {{"region_id": 3, "bucket": "03", "rule": "<QUALITY_FROM_ANSWERS>", "intensity": <0.2-1.0>, "frequency": <0.5-2.0>}},
-    {{"region_id": 4, "bucket": "04", "rule": "<QUALITY_FROM_ANSWERS>", "intensity": <0.2-1.0>, "frequency": <0.5-2.0>}},
-    {{"region_id": 5, "bucket": "05", "rule": "<QUALITY_FROM_ANSWERS>", "intensity": <0.2-1.0>, "frequency": <0.5-2.0>}}
+    {assignments}
   ]
-}}"""
+}}
+
+Replace "EMOTION" with a feeling derived from their answers. intensity: 0.2-1.0, frequency: 0.5-2.0."""
 
 
 # ============================================================================
@@ -108,7 +112,7 @@ class LLMRulesAdapter:
 
         # Step 1: Generate regions algorithmically (guaranteed valid)
         seed = _answers_to_seed(answers)
-        regions = generate_regions(rows=rows, cols=cols, num_regions=5, seed=seed)
+        regions = generate_regions(rows=rows, cols=cols, num_regions=20, seed=seed)
 
         # Step 2: LLM assigns emotional qualities
         model, tokenizer = get_model()

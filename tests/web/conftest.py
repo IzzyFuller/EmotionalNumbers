@@ -41,44 +41,18 @@ MOCK_QUESTIONS_JSON = json.dumps(
 )
 
 # Emotions response - LLM now only assigns emotions, regions are algorithmic
+# Generate 20 mock assignments to match the 20 regions
 MOCK_EMOTIONS_JSON = json.dumps(
     {
         "assignments": [
             {
-                "region_id": 1,
-                "bucket": "01",
-                "rule": "cold",
-                "intensity": 0.3,
-                "frequency": 1.2,
-            },
-            {
-                "region_id": 2,
-                "bucket": "02",
-                "rule": "warm",
-                "intensity": 0.7,
-                "frequency": 1.1,
-            },
-            {
-                "region_id": 3,
-                "bucket": "03",
-                "rule": "sharp",
-                "intensity": 0.5,
-                "frequency": 1.5,
-            },
-            {
-                "region_id": 4,
-                "bucket": "04",
-                "rule": "soft",
-                "intensity": 0.4,
-                "frequency": 1.0,
-            },
-            {
-                "region_id": 5,
-                "bucket": "05",
-                "rule": "heavy",
-                "intensity": 0.9,
-                "frequency": 0.6,
-            },
+                "region_id": i,
+                "bucket": f"{(i % 5) + 1:02d}",
+                "rule": ["cold", "warm", "sharp", "soft", "heavy"][i % 5],
+                "intensity": 0.3 + (i % 5) * 0.15,
+                "frequency": 0.6 + (i % 5) * 0.2,
+            }
+            for i in range(1, 21)
         ]
     }
 )
@@ -178,24 +152,29 @@ def playing_game(client: TestClient):
 
 @pytest.fixture
 def select_hinted_region(client: TestClient, playing_game) -> str:
-    """Get hint, select boundary around region, return bucket.
+    """Get hint, select tight boundary around region, return bucket.
 
-    Boundary-based classification: select cells surrounding the region.
+    Select only cells immediately adjacent to the region (not a bounding box).
+    This ensures the interior contains ONLY the region cells.
     """
     _ = playing_game  # Ensure game is started
 
     hint = HintResponse(**client.get("/api/hint").json())
     positions = hint.region.positions
 
-    # Calculate boundary: cells surrounding the region
+    # Build tight boundary: only cells directly adjacent to region
     region_set = {(p[0], p[1]) for p in positions}
-    min_x, max_x = min(p[0] for p in positions), max(p[0] for p in positions)
-    min_y, max_y = min(p[1] for p in positions), max(p[1] for p in positions)
+    boundary: set[tuple[int, int]] = set()
 
-    for x in range(min_x - 1, max_x + 2):
-        for y in range(min_y - 1, max_y + 2):
-            if (x, y) not in region_set and x >= 0 and y >= 0:
-                if x in (min_x - 1, max_x + 1) or y in (min_y - 1, max_y + 1):
-                    client.post("/api/select", json={"x": x, "y": y})
+    for x, y in region_set:
+        # Check all 4 neighbors
+        for dx, dy in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+            nx, ny = x + dx, y + dy
+            if (nx, ny) not in region_set and nx >= 0 and ny >= 0:
+                boundary.add((nx, ny))
+
+    # Select all boundary cells
+    for x, y in boundary:
+        client.post("/api/select", json={"x": x, "y": y})
 
     return hint.region.bucket

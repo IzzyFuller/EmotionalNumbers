@@ -95,10 +95,17 @@ class Game:
 
     @property
     def progress(self) -> int:
-        """Calculate completion percentage."""
-        total = self.rows * self.cols
-        classified = sum(1 for row in self._grid for cell in row if cell.classified)
-        return round((classified / total) * 100) if total > 0 else 0
+        """Calculate completion percentage based on region cells classified."""
+        total_region_cells = sum(len(r.positions) for r in self.rule_set.regions)
+        if total_region_cells == 0:
+            return 0
+        classified = sum(
+            1
+            for region in self.rule_set.regions
+            for x, y in region.positions
+            if self._grid[y][x].classified
+        )
+        return round((classified / total_region_cells) * 100)
 
     @property
     def selected_positions(self) -> list[tuple[int, int]]:
@@ -239,7 +246,7 @@ class Game:
             if unclassified:
                 return {
                     "bucket": region.bucket,
-                    "positions": unclassified[:4],  # Hint shows up to 4 positions
+                    "positions": unclassified,  # All positions for accurate boundary
                 }
         return None
 

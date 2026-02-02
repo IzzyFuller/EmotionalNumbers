@@ -30,45 +30,18 @@ def sample_answers() -> list[dict]:
 
 @pytest.fixture
 def valid_emotions_response() -> str:
-    """Valid emotions JSON response from LLM."""
+    """Valid emotions JSON response from LLM - 20 regions mapped to 5 buckets."""
     return json.dumps(
         {
             "assignments": [
                 {
-                    "region_id": 1,
-                    "bucket": "01",
-                    "rule": "cold",
-                    "intensity": 0.3,
-                    "frequency": 1.2,
-                },
-                {
-                    "region_id": 2,
-                    "bucket": "02",
-                    "rule": "warm",
-                    "intensity": 0.7,
-                    "frequency": 0.8,
-                },
-                {
-                    "region_id": 3,
-                    "bucket": "03",
-                    "rule": "sharp",
-                    "intensity": 0.5,
-                    "frequency": 1.5,
-                },
-                {
-                    "region_id": 4,
-                    "bucket": "04",
-                    "rule": "soft",
-                    "intensity": 0.4,
-                    "frequency": 1.0,
-                },
-                {
-                    "region_id": 5,
-                    "bucket": "05",
-                    "rule": "heavy",
-                    "intensity": 0.9,
-                    "frequency": 0.6,
-                },
+                    "region_id": i,
+                    "bucket": f"{(i % 5) + 1:02d}",
+                    "rule": ["cold", "warm", "sharp", "soft", "heavy"][i % 5],
+                    "intensity": 0.3 + (i % 5) * 0.15,
+                    "frequency": 0.6 + (i % 5) * 0.2,
+                }
+                for i in range(1, 21)
             ]
         }
     )
@@ -166,8 +139,8 @@ class TestLLMRulesAdapter:
             rule_set = adapter.generate_rules(sample_answers, rows=25, cols=40)
 
         assert isinstance(rule_set, RuleSet)
-        assert len(rule_set.regions) == 5
-        assert len(rule_set.behaviors) == 5
+        assert len(rule_set.regions) == 20
+        assert len(rule_set.behaviors) == 5  # One behavior per bucket, not per region
 
         reset_model()
 
